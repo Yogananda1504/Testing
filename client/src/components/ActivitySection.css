@@ -1,0 +1,31 @@
+
+  
+  
+  .input-container .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  
+  .input-container .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  
+  .option-container {
+    background-color: #f8f9fa;
+    padding: 1rem;
+  }
+  
+  .option-container .btn-link {
+    color: #6c757d;
+  }
+  
+  .message-checkbox {
+    margin-right: 10px;
+  }
+  
+  .message-self .message-checkbox {
+    order: 1;
+    margin-right: 0;
+    margin-left: 10px;
+  }

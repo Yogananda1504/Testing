@@ -1,30 +1,48 @@
 import React from 'react';
 import { Form } from 'react-bootstrap';
 
-function Message({ username, message, isSelectable, isSelected, onSelect }) {
-  const messageClass = message.username === username ? 'message-self' : 'message-other';
-  const styles ={
-    backgroundColor:"#d9fdd3"
+const Message = ({
+  username,
+  message,
+  isSelectable,
+  isSelected,
+  onSelect
+}) => {
+  const isOwnMessage = message.username === username;
+  const messageClass = isOwnMessage ? 'message-self' : 'message-other';
+
+  const renderMessageContent = () => {
+    if (message.deletedForEveryone) {
+      return message.deletedBy === username
+        ? "You deleted this message"
+        : `${message.deletedBy} deleted this message for everyone`;
+    }
+    return message.message;
+  };
+
+  const renderUsername=()=>{
+    if(message.username===username){
+      return "You";
+    }
+    return message.username;
   }
+
   return (
     <div className={`message ${messageClass}`}>
-
-      {message.username !== username && <div className="message-username">{message.username}</div>}
-      <div className="message-bubble" >
+       <div className="message-username">{renderUsername()}</div>
+      <div className="message-bubble" style={{ backgroundColor: "#d9fdd3",color:"black" }}>
         {isSelectable && (
-          <div className={`message-checkbox ${message.username === username ? 'align-self-end' : 'align-self-start'}`}>
-            <Form.Check
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => { onSelect(message.id) }}
-              
-            />
-          </div>
+          <Form.Check
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onSelect(message.id)}
+            className={`message-checkbox ${isOwnMessage ? 'align-self-end' : 'align-self-start'}`}
+          />
         )}
-        {message.message}
+        {renderMessageContent()}
       </div>
     </div>
   );
-}
+};
 
-export default Message; 
+export default Message;

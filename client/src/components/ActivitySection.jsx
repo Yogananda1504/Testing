@@ -68,9 +68,13 @@ function ActivitySection({ username, messages, setMessages, room }) {
   useEffect(() => {
     socket.on("receive_message", handleMessageReceive);
     socket.on('messages_deleted', handleMessagesDeleted);
+    socket.on('left_room',(data)=>{
+      handleMessageReceive(data);
+    })
     return () => {
       socket.off("receive_message", handleMessageReceive);
       socket.off('messages_deleted', handleMessagesDeleted);
+      socket.off('left_room');
     }
   }, [socket]);
 
@@ -196,7 +200,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
     } else {
       setDeleteType('notSentByMe');
     }
-
+    console.log("Delete type:", deleteType);
     console.log("Setting showDeleteModal to true");
     setShowDeleteModal(true);
   };
@@ -297,7 +301,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
               disabled={selectedMessages.length === 0}
               title='Delete Messages'
             >
-              <span class="material-symbols-outlined">
+              <span class="material-symbols-outlined" title='delete' style={{color:"Red",}}>
                 delete
               </span>
             </Button>
@@ -350,7 +354,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
           <Button variant="danger" onClick={() => confirmDelete('me')}>
             Delete for Me
           </Button>
-          {(deleteType === 'sentByMe' || deleteType === 'both') && (
+          {(deleteType === 'sentByMe' ) && (
             <Button variant="danger" onClick={() => confirmDelete('everyone')}>
               Delete for Everyone
             </Button>

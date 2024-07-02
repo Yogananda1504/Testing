@@ -1,26 +1,67 @@
-/* Error.css */
+/* E_401.css */
 
-/* Error container styling */
-.error-container {
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  
+  #root {
+    height: 100%;
+  }
+  
+  .Error_401_container {
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    height: 100vh; /* Full viewport height */
-    width: 100vw; /* Full viewport width */
-    background-color: #f8f8f8;
-    box-sizing: border-box; /* Ensures padding and border are included in the element's dimensions */
-    padding: 0; /* Resets padding to avoid overflow */
-    margin: 0; /* Resets margin to avoid overflow */
-}
-
-.error-title {
-    font-size: 24px;
-    font-weight: bold;
-    color: #ff0000;
-}
-
-.error-message {
-    font-size: 16px;
-    color: #333333;
-}
+    align-items: center;
+    min-height: 100vh;
+    width: 100vw;
+    background-color: #f8f9fa;
+    overflow: hidden;
+  }
+  
+  .container {
+    max-width: 100%;
+    padding: 0 15px;
+  }
+  
+  h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #dc3545;
+  }
+  
+  p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    color: #6c757d;
+  }
+  
+  .btn-primary {
+    font-size: 1.1rem;
+    padding: 0.5rem 2rem;
+  }
+  
+  /* Ensure toast container doesn't cause overflow */
+  .Toastify__toast-container {
+    width: auto;
+    max-width: 90%;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 2.5rem;
+    }
+  
+    p {
+      font-size: 1rem;
+    }
+  
+    .btn-primary {
+      font-size: 1rem;
+      padding: 0.4rem 1.5rem;
+    }
+  }

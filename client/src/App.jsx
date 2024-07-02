@@ -6,6 +6,7 @@ import E_404 from './Pages/error/E_404';
 import E_401 from './Pages/error/E_401';
 import E_500 from './Pages/error/E_500';
 import { socket,SocketContext } from '../Context/SocketContext';
+import E_403 from './Pages/error/E_403';
 
 
 
@@ -66,8 +67,9 @@ function App() {
               />
             }
           />
-          <Route exact path='/Forbidden' element={<E_401 />} />
-          <Route exact path='/Internal-error' element={<E_500 />} />
+           <Route exact path='/Unauthorized' element={<E_401/>} />
+          <Route exact path='/Forbidden' element={<E_403 />} />
+           <Route exact path='/Internal-error' element={<E_500 />} />
           <Route exact path='*' element={<E_404 />} />
         </Routes>
       </Router>

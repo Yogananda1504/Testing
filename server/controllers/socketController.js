@@ -208,6 +208,17 @@ const  handleSocketEvents = (io) => {
 				console.error("Error leaving room:", error);
 			}
 		});
+		socket.on("remove_user",async ({username,room})=>{
+			try {
+				await ActiveUser.deleteOne({ username, room });
+                const activeUsersInRoom = await ActiveUser.find({ room });
+				io.to(room).emit("chatroom_users", activeUsersInRoom);
+                socket.disconnect();
+			} catch (error) {
+				console.error("Error leaving room:", error);
+			}
+
+		});
 	});
 };
 

@@ -13,7 +13,7 @@ export const generateToken = async (req, res, next) => {
 			};
 		}
 
-		const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+		const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "14m" });
 		console.log(token);
 		req.token = token;
 		next(); // Call the next middleware in the chain
@@ -23,7 +23,7 @@ export const generateToken = async (req, res, next) => {
 	}
 };
 
-export  const verifyToken = async (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
 	const authorizationHeader = req.headers.authorization;
 
 	if (!authorizationHeader) {
@@ -38,23 +38,29 @@ export  const verifyToken = async (req, res, next) => {
 
 	try {
 		const decodedToken = jwt.verify(token, JWT_SECRET);
-		if(!decodedToken) {
-			return res.status(401).json({ message: "Expired Token" });
+		if (!decodedToken) {
+			return res.status(401).json({ message: "Invalid Token" });
 		}
-		const tokenRoom = decodedToken.room;
 
-		// Check if the room matches
+		const tokenRoom = decodedToken.room;
 		const { username, room } = req.params;
+
+		// First, check if the user is authenticated
+		if (decodedToken.username !== username) {
+			return res.status(401).json({ message: "Unauthorized: Invalid user" });
+		}
+
+		// Then, check if the user has access to the requested room
 		if (tokenRoom !== room) {
-			return res.status(401).json({ message: "Unauthorized" });
+			return res
+				.status(403)
+				.json({ message: "Forbidden: You don't have access to this room" });
 		}
 
 		// Attach user info to the request object
 		req.user = decodedToken;
-		next();//call next middleware in the chain
+		next();
 	} catch (error) {
-		return res.status(403).json({ message: "Failed to authenticate token" });
+		return res.status(401).json({ message: "Failed to authenticate token" });
 	}
 };
-
-

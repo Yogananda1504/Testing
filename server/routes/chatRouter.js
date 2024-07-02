@@ -8,7 +8,8 @@ router.use(cors());
 // Route for fetching messages and active users in a room
 router.use(express.json());
 
-router.get("/chat/messages", getRoomdata);
+//getRoomdata already has the verification process
+router.get("/chat/messages",getRoomdata);
 //Generation of Token endpoint
 router.post("/generate-token", generateToken, (req, res) => {
 	try {

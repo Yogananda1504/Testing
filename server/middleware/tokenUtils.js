@@ -1,49 +1,75 @@
 import jwt from "jsonwebtoken";
+import RefreshToken from "../models/RefreshToken.js";
 const JWT_SECRET = "secret";
 
 export const generateToken = async (req, res, next) => {
 	try {
-		let payload;
-		if (req.user) {
-			payload = { username: req.user.username, room: req.user.room };
-		} else {
-			payload = {
-				username: req.query.username || req.params.username,
-				room: req.query.room || req.params.room,
-			};
+		const payload = {
+			username: req.query.username || req.params.username,
+			room: req.query.room || req.params.room,
+		};
+
+		if (!payload.username || !payload.room) {
+			return res.status(401).json({ message: "Invalid user or room" });
 		}
 
-		const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "14m" });
-		console.log(token);
-		req.token = token;
-		next(); // Call the next middleware in the chain
+		const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "14m" });
+		const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+		const tokens = { accessToken, refreshToken };
+
+		// Set access token cookie
+		//httpOnly: true means that the cookie cannot be accessed by JavaScript .Which will also make it secure by not allowing any modification from the frontend side 
+		//maxAge: 14 * 60 * 1000 means that the cookie will expire after 14 minutes
+		//path: "/" means that the cookie is available for all paths
+		//secure: true means that the cookie is only sent over HTTPS
+		//sameSite: "strict" means that the cookie is only sent in a first-party context
+		res.cookie("accessToken", accessToken, {
+			httpOnly: true,
+			maxAge: 14 * 60 * 1000, // 14 minutes
+			path: "/", // Ensure the cookie is available for all paths
+		});
+
+		// Set refresh token cookie
+		res.cookie("refreshToken", refreshToken, {
+			httpOnly: true,
+			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+			path: "/", // Ensure the cookie is available for all paths
+		});
+        // Save the Refresh Token in the MongoDB database
+		
+        const refreshTokenDoc = new RefreshToken({ token: refreshToken });
+		await refreshTokenDoc.save();
+
+
+		console.log("Tokens generated:", tokens);
+		console.log("Cookies set:", res.getHeaders()["set-cookie"]);
+
+		// Send a response to confirm token generation
+		res.status(200).json({ message: "Tokens generated successfully" });
+
+		// next() is not called here as we're ending the request with a response
 	} catch (error) {
 		console.error("Failed to generate token:", error);
 		return res.status(500).json({ error: error.message });
 	}
 };
 
-export const verifyToken = async (req, res, next) => {
-	const authorizationHeader = req.headers.authorization;
+export const verifyAccessToken = async (req, res, next) => {
+	// Getting the acess token from the request headers
+	const accessToken = req.cookies.accessToken;
 
-	if (!authorizationHeader) {
-		return res.status(401).json({ message: "No token provided" });
-	}
-
-	const token = authorizationHeader.split("Bearer ")[1];
-
-	if (!token) {
-		return res.status(401).json({ message: "No token provided" });
+	if (!accessToken) {
+		return res.status(401).json({ message: "No Token" });
 	}
 
 	try {
-		const decodedToken = jwt.verify(token, JWT_SECRET);
+		const decodedToken = jwt.verify(accessToken, JWT_SECRET);
 		if (!decodedToken) {
 			return res.status(401).json({ message: "Invalid Token" });
 		}
 
 		const tokenRoom = decodedToken.room;
-		const { username, room } = req.params;
+		const { username, room } = req.query || req.params;
 
 		// First, check if the user is authenticated
 		if (decodedToken.username !== username) {
@@ -57,10 +83,83 @@ export const verifyToken = async (req, res, next) => {
 				.json({ message: "Forbidden: You don't have access to this room" });
 		}
 
-		// Attach user info to the request object
-		req.user = decodedToken;
+		//If everything is ok then call the next function in the middleware chain or the controller
 		next();
 	} catch (error) {
 		return res.status(401).json({ message: "Failed to authenticate token" });
 	}
+};
+
+export const CrossValidateRefreshToken = async (req, res, next) => {
+	//If the request token is not present in the MongoDB database then it means that the RefreshToken is non genuine
+	const refreshToken = req.cookies.refreshToken;
+	if (!refreshToken) {
+		return res.status(401).json({ message: "No Token Found" });
+	}
+	try {
+		const token = await RefreshToken.findOne({ token: refreshToken });
+		if (!token) {
+			return res.status(401).json({ message: "Invalid Refresh Token" });
+		}
+	} catch (error) {
+		return res.status(500).json({ error: error.message });
+	}
+
+	next();
+};
+
+export const verifyRefreshToken = async (req, res, next) => {
+	const { room, username } = req.query || req.params;
+	const refreshToken = req.cookies.refreshToken;
+
+	if (!username || !room) {
+		console.log("Invalid username or room while verifying refresh token");
+		return res.status(401).json({ message: "Invalid user or room" });
+	}
+
+	if (!refreshToken) {
+		console.log("Token Not Found while verifying refresh token");
+		return res.status(401).json({ message: " Token Not Found" });
+	}
+	try {
+		const decodedToken = jwt.verify(refreshToken, JWT_SECRET);
+		//If the token is invalid then set the status to 401 and return the repsonse
+		if (!decodedToken) {
+			console.log("Invalid Token while verifying refresh token");
+			return res.status(401).json({ message: "Invalid Token" });
+		}
+		if (decodedToken.username !== username || decodedToken.room !== room) {
+			console.log("Invalid Username or Room while verifying refresh token")
+			return res.status(403).json({ message: "Invalid Username or Room" });
+		}
+		if (decodedToken.room !== room) {
+			console.log("Invalid Room while verifying refresh token")
+			return res.status(403).json({ message: "Invalid Username or Room" });
+		}
+
+		//If everything is ok then attach the user to the request object
+		req.user = decodedToken;
+		next();
+	} catch (error) {}
+};
+
+export const generateAccessteToken = async (req, res, next) => {
+	const { username, room } = req.user;
+	if (!username || !room) {
+		return res.status(401).json({ message: "Invalid user or room" });
+	}
+
+	//Generate a new token with the same payload
+	const acesstoken = jwt.sign({ username, room }, JWT_SECRET, {
+		expiresIn: "14m",
+	});
+	//Set the previous cookie with the newlyGenerated cookie
+	res.cookie("accesstoken", acesstoken, {
+		httpOnly: true,
+		secure: true,
+		sameSite: "strict",
+		maxAge: 14 * 60 * 1000,
+	});
+	//You have renewed the tokens properly until now
+	next();
 };

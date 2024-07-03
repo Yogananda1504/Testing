@@ -13,10 +13,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 const apiURL = 'http://localhost:4000';
-const INACTIVITY_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
-const TOKEN_RENEWAL_INTERVAL = 14 * 60 * 1000; // 14 minutes
-const INACTIVITY_WARNING_TIME = 1 * 60 * 1000; // 1 minute
-
+const INACTIVITY_TIME_LIMIT = 15 * 60 * 1000; // 15 m 
+const TOKEN_RENEWAL_INTERVAL = 14 * 60 * 1000; //  14 m 
+const INACTIVITY_WARNING_TIME = 1 * 60 * 1000; // 1 m 
 function Chatpage({ username, setActivitystatus, setLeftstatus }) {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
@@ -31,36 +30,47 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
 
   const handleDrawerToggle = () => setShowDrawer(!showDrawer);
 
-  const handleLeaveRoom = useCallback(() => {
-    socket.emit('leave_room', { username, room });
-    setLeftstatus(true);
-    navigate('/');
-  }, [username, room, setLeftstatus, navigate]);
-
   const renewToken = useCallback(async () => {
     try {
       const response = await axios.post(
-        `${apiURL}/api/chat/renew-token`,
-        { username, room },
+        `${apiURL}/api/chat/renew-token?room=${room}&username=${username}`,
+              {},
         {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('token')}`,
-          },
+          headers: {},
+          withCredentials: true
         }
       );
-      sessionStorage.setItem('token', response.data.token);
       toast.success('Token renewed successfully');
+      return true;
     } catch (error) {
-      console.error('Failed to renew token:', error);
       toast.error('Failed to renew token.');
+      return false;
+    }
+  }, [username, room]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      socket.emit('leave_room', { username, room });
+      setActivitystatus(false);
+      await axios.delete(`${apiURL}/api/chat/logout`,
+        { data: { username, room } },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true
+        }
+      );
+      navigate('/');
+    } catch (error) {
+      toast.error('Failed to logout. Please try again.');
       navigate('/');
     }
-  }, [username, room, navigate]);
+  }, [username, room, setActivitystatus, navigate]);
 
   const resetInactivityTimer = useCallback(() => {
     clearTimeout(inactivityTimerRef.current);
     clearTimeout(inactivityWarningTimerRef.current);
-    clearTimeout(tokenRenewalTimerRef.current);
 
     lastActivityRef.current = Date.now();
 
@@ -71,34 +81,69 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
     inactivityTimerRef.current = setTimeout(() => {
       handleLogout();
     }, INACTIVITY_TIME_LIMIT);
+  }, [handleLogout]);
 
-    tokenRenewalTimerRef.current = setTimeout(() => {
+  const startTokenRenewalTimer = useCallback(() => {
+    clearInterval(tokenRenewalTimerRef.current);
+
+    tokenRenewalTimerRef.current = setInterval(async () => {
       const timeSinceLastActivity = Date.now() - lastActivityRef.current;
       if (timeSinceLastActivity < TOKEN_RENEWAL_INTERVAL) {
-        renewToken();
+        const tokenRenewed = await renewToken();
+        if (tokenRenewed) {
+          resetInactivityTimer();
+        }
       }
     }, TOKEN_RENEWAL_INTERVAL);
-  }, [renewToken]);
+  }, [renewToken, resetInactivityTimer]);
 
-  const handleStayActive = useCallback(() => {
-    setShowInactivityPopup(false);
+  const handleActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
     resetInactivityTimer();
-    renewToken();
+
+    const timeSinceLastTokenRenewal = Date.now() - (tokenRenewalTimerRef.current ? tokenRenewalTimerRef.current._idleStart : 0);
+    if (timeSinceLastTokenRenewal >= TOKEN_RENEWAL_INTERVAL) {
+      renewToken().then((tokenRenewed) => {
+        if (tokenRenewed) {
+          resetInactivityTimer();
+        }
+      });
+    }
   }, [resetInactivityTimer, renewToken]);
 
-  const handleLogout = useCallback(() => {
-    socket.emit('leave_room', { username, room });
-    console.log('Logged out due to inactivity');
-    setActivitystatus(false);
-    sessionStorage.removeItem('token');
-    navigate('/');
-  }, [username, room, setActivitystatus, navigate]);
+  const handleStayActive = useCallback(async () => {
+    setShowInactivityPopup(false);
+    const tokenRenewed = await renewToken();
+
+    if (tokenRenewed) {
+      resetInactivityTimer();
+    } else {
+      handleLogout();
+    }
+  }, [resetInactivityTimer, renewToken, handleLogout]);
+
+  const handleLeaveRoom = useCallback(async () => {
+    try {
+      socket.emit('leave_room', { username, room });
+      await axios.delete(`${apiURL}/api/chat/logout`,
+        { data: { username, room } },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true
+        }
+      );
+      setLeftstatus(true);
+      navigate('/');
+    } catch (error) {
+      toast.error('Failed to leave room. Please try again.');
+      navigate('/');
+    }
+  }, [username, room, setLeftstatus, navigate]);
 
   const handleFetchError = useCallback((error) => {
-    console.error('Error details:', error);
-
     if (!error.response) {
-      console.error('Network error or no response from server');
       toast.error('Network error. Please check your connection.');
       return;
     }
@@ -106,44 +151,34 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
     const { status, data } = error.response;
     const { message } = data;
 
-    console.log(`Error ${status}: ${message}`, { username, room });
-
     switch (status) {
       case 401:
-        console.log(`Unauthorized: ${message}. Removing user ${username} from room ${room}`);
         socket.emit("remove_user", { username, room });
         navigate('/Unauthorized', { state: { errorMsg: message } });
         break;
       case 403:
-        console.log("Forbidden: Improper access to the room");
         navigate('/Forbidden');
         break;
       case 404:
-        console.log("Not Found: Requested resource not available");
         navigate('/Not-found');
         break;
       case 500:
-        console.log(`Internal Server Error: ${message}`);
         socket.emit("remove_user", { username, room });
         navigate('/Internal-error', { state: { errorMsg: message } });
         break;
       default:
-        console.log(`Unhandled error status ${status}: ${message}`);
         toast.error('Failed to fetch chat data');
         navigate('/error');
     }
   }, [username, room, navigate]);
 
   useEffect(() => {
-    const handleActivity = () => {
-      resetInactivityTimer();
-    };
-
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
     window.addEventListener('scroll', handleActivity);
 
     resetInactivityTimer();
+    startTokenRenewalTimer();
 
     return () => {
       window.removeEventListener('mousemove', handleActivity);
@@ -151,9 +186,9 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
       window.removeEventListener('scroll', handleActivity);
       clearTimeout(inactivityTimerRef.current);
       clearTimeout(inactivityWarningTimerRef.current);
-      clearTimeout(tokenRenewalTimerRef.current);
+      clearInterval(tokenRenewalTimerRef.current);
     };
-  }, [resetInactivityTimer]);
+  }, [resetInactivityTimer, startTokenRenewalTimer, handleActivity]);
 
   useEffect(() => {
     if (!room || !socket) return;
@@ -166,8 +201,9 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
           `${apiURL}/api/chat/messages?room=${room}&username=${username}`,
           {
             headers: {
-              Authorization: `Bearer ${sessionStorage.getItem('token')}`,
+              'Content-Type': 'application/json',
             },
+            withCredentials: true
           }
         );
 
@@ -192,7 +228,6 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
 
     const handleUserslist = (users) => {
       setUsers(users);
-      console.log(users);
     };
 
     socket.on('chatroom_users', handleUserslist);
@@ -209,7 +244,6 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
     });
 
     socket.on('reconnect_error', (error) => {
-      console.error('Socket reconnection error:', error);
       toast.error(`Reconnection error: ${error}`);
     });
 

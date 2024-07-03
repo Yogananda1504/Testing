@@ -8,9 +8,12 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Container, Row, Col, Form, Button, InputGroup } from 'react-bootstrap';
 import './Home.css';
 
+const apiUrl = 'http://localhost:4000';
+
+
 const Home = ({ username, setUsername, room, setRoom,  activitystatus, setActivitystatus, leftstatus, setLeftstatus }) => {
     const navigate = useNavigate();
-    const apiUrl = 'http://localhost:4000';
+    
     const socket  = useContext(SocketContext);
 
     const [isJoining, setIsJoining] = useState(false);
@@ -19,9 +22,19 @@ const Home = ({ username, setUsername, room, setRoom,  activitystatus, setActivi
 
     const generateTokenAndJoinRoom = useCallback(async () => {
         try {
-            const res = await axios.post(`${apiUrl}/api/generate-token?room=${room}&username=${username}`);
-            const token = res.data.token;
-            sessionStorage.setItem('token', token);
+            
+            await axios.post(
+                `${apiUrl}/api/generate-token?room=${room}&username=${username}`,
+                {  },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    withCredentials: true, // This enables sending cookies with cross-origin requests
+                }
+            );
+           
+           
             socket.emit('join_room', { username, room });
             navigate(`/chat/${room}`);
         } catch (error) {

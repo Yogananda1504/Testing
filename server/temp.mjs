@@ -1,17 +1,19 @@
-import express from 'express';
-import http from 'http';
-import cors from 'cors';
-import { Server } from 'socket.io';
-import mongoose from 'mongoose';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import dotenv from 'dotenv';
-import { createAdapter } from '@socket.io/redis-adapter';
-import redis from 'redis';
+import express from "express";
+import http from "http";
+import cors from "cors";
+import { Server } from "socket.io";
+import mongoose from "mongoose";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import dotenv from "dotenv";
+import { createAdapter } from "@socket.io/redis-adapter";
+import redis from "redis";
+
 
 // Import routers and socket controller
-import chatRouter from './routes/chatRouter.js';
-import handleSocketEvents from './controllers/socketController.js';
+import chatRouter from "./routes/chatRouter.js";
+import handleSocketEvents from "./controllers/socketController.js";
+import cookieParser from "cookie-parser";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -22,75 +24,82 @@ const __dirname = dirname(__filename);
 const buildPath = join(__dirname, "..", "client", "dist");
 
 export default async () => {
-   const app = express();
-   const server = http.createServer(app);
-   
-   const redisHost = process.env.REDIS_HOST || "localhost";
-   const redisPort = process.env.REDIS_PORT || 6379;
+	const app = express();
+	const server = http.createServer(app);
 
-   const io = new Server(server, {
-       cors: {
-           origin: "*",
-           methods: ["GET", "POST"],
-       },
-   });
+	const redisHost = process.env.REDIS_HOST || "localhost";
+	const redisPort = process.env.REDIS_PORT || 6379;
 
-   // Set up Redis adapter
-   const pubClient = redis.createClient({
-       host: redisHost,
-       port: redisPort
-   });
-   const subClient = pubClient.duplicate();
+	const io = new Server(server, {
+		cors: {
+			origin: "*",
+			methods: ["GET", "POST"],
+		},
+	});
 
-   // Handle Redis client connection
-   const connectRedis = () => {
-       return new Promise((resolve, reject) => {
-           pubClient.on('connect', resolve);
-           pubClient.on('error', reject);
-           if (pubClient.connect && typeof pubClient.connect === 'function') {
-               pubClient.connect();
-           }
-       });
-   };
+	// Set up Redis adapter
+	const pubClient = redis.createClient({
+		host: redisHost,
+		port: redisPort,
+	});
+	const subClient = pubClient.duplicate();
 
-   try {
-       await connectRedis();
-       console.log('Successfully connected to Redis');
-   } catch (error) {
-       console.error('Failed to connect to Redis:', error);
-   }
+	// Handle Redis client connection
+	const connectRedis = () => {
+		return new Promise((resolve, reject) => {
+			pubClient.on("connect", resolve);
+			pubClient.on("error", reject);
+			if (pubClient.connect && typeof pubClient.connect === "function") {
+				pubClient.connect();
+			}
+		});
+	};
 
-   io.adapter(createAdapter(pubClient, subClient));
+	try {
+		await connectRedis();
+		console.log("Successfully connected to Redis");
+	} catch (error) {
+		console.error("Failed to connect to Redis:", error);
+	}
 
-   app.use(cors());
-   app.use(express.json());
+	io.adapter(createAdapter(pubClient, subClient));
 
-   // MongoDB connection
-   const MONGO_DB_URI = process.env.MONGO_DB_URI || "mongodb://127.0.0.1:27017/chat";
-   await mongoose.connect(MONGO_DB_URI, {
-       useNewUrlParser: true,
-       useUnifiedTopology: true,
-   });
+	let config = {
+		origin: "http://localhost:5173",
+		method: ["GET", "POST"],
+		credentials: true,
+	};
+	app.use(cors(config));
+	app.use(express.json());
+	app.use(cookieParser());
 
-   console.log("Successfully connected to the Database");
+	// MongoDB connection
+	const MONGO_DB_URI =
+		process.env.MONGO_DB_URI || "mongodb://127.0.0.1:27017/chat";
+	await mongoose.connect(MONGO_DB_URI, {
+		useNewUrlParser: true,
+		useUnifiedTopology: true,
+	});
 
-   // Mount routers
-   app.use("/api", chatRouter);
+	console.log("Successfully connected to the Database");
 
-   // Serve static files from the React app's build directory
-   app.use(express.static(buildPath));
+	// Mount routers
+	app.use("/api", chatRouter);
 
-   // Redirect any non-API routes to the front end's index.html
-   app.get("*", (req, res) => {
-       res.sendFile(join(buildPath, "index.html"));
-   });
-   
-   // Initialize socket controller
-   handleSocketEvents(io);
+	// Serve static files from the React app's build directory
+	app.use(express.static(buildPath));
 
-   // Start the server on a worker process
-   const port = process.env.PORT || 4000;
-   server.listen(port, () => {
-       console.log(`Server running on port ${port}`);
-   });
+	// Redirect any non-API routes to the front end's index.html
+	app.get("*", (req, res) => {
+		res.sendFile(join(buildPath, "index.html"));
+	});
+
+	// Initialize socket controller
+	handleSocketEvents(io);
+
+	// Start the server on a worker process
+	const port = process.env.PORT || 4000;
+	server.listen(port, () => {
+		console.log(`Server running on port ${port}`);
+	});
 };

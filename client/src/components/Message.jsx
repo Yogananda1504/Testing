@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Form } from 'react-bootstrap';
+import { ChevronDown } from 'lucide-react';
 
 const Message = ({
   username,
   message,
   isSelectable,
   isSelected,
-  onSelect
+  onSelect,
+  onMessageOptions
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const isOwnMessage = message.username === username;
   const messageClass = isOwnMessage ? 'message-self' : 'message-other';
 
@@ -20,17 +23,21 @@ const Message = ({
     return message.message;
   };
 
-  const renderUsername=()=>{
-    if(message.username===username){
+  const renderUsername = () => {
+    if (message.username === username) {
       return "You";
     }
     return message.username;
-  }
+  };
 
   return (
-    <div className={`message ${messageClass}`}>
-       <div className="message-username">{renderUsername()}</div>
-      <div className="message-bubble" style={{ backgroundColor: "#d9fdd3",color:"black" }}>
+    <div 
+      className={`message ${messageClass}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="message-username">{renderUsername()}</div>
+      <div className="message-bubble" style={{ backgroundColor: "#d9fdd3", color: "black", position: 'relative' }}>
         {isSelectable && (
           <Form.Check
             type="checkbox"
@@ -40,6 +47,20 @@ const Message = ({
           />
         )}
         {renderMessageContent()}
+        {isHovered && (
+          <div 
+            className="message-options"
+            style={{
+              position: 'absolute',
+              top: '2px',
+              right: '2px',
+              cursor: 'pointer'
+            }}
+            onClick={() => onMessageOptions(message._id)}
+          >
+            <ChevronDown size={16} color="#666" />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -230,6 +230,11 @@ function ActivitySection({ username, messages, setMessages, room }) {
     }
   };
 
+  const handleMessageOptions = (messageId) => {
+    // Implement your logic here, e.g., show a dropdown menu with edit/delete options
+    console.log(`Show options for message ${messageId}`);
+  };
+
   return (
     <Container
       fluid
@@ -247,6 +252,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
               isSelectable={selectionMode}
               isSelected={selectedMessages.includes(message._id)}
               onSelect={() => handleSelectMessage(message._id)}
+              onMessageOptions={handleMessageOptions}
             />
           ))}
 

@@ -1,0 +1,16 @@
+.message-bubble {
+    transition: background-color 0.2s ease;
+  }
+  
+  .message-bubble:hover {
+    background-color: #c5e9c5 !important;
+  }
+  
+  .message-options {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  .message-bubble:hover .message-options {
+    opacity: 1;
+  }

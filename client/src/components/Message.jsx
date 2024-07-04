@@ -30,8 +30,13 @@ const Message = ({
     return message.username;
   };
 
+  const handleOptionsClick = (e) => {
+    e.stopPropagation(); // Prevent event from bubbling up
+    onMessageOptions(e, message._id, isOwnMessage);
+  };
+
   return (
-    <div 
+    <div
       className={`message ${messageClass}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -42,13 +47,13 @@ const Message = ({
           <Form.Check
             type="checkbox"
             checked={isSelected}
-            onChange={() => onSelect(message.id)}
+            onChange={() => onSelect(message._id)}
             className={`message-checkbox ${isOwnMessage ? 'align-self-end' : 'align-self-start'}`}
           />
         )}
         {renderMessageContent()}
         {isHovered && (
-          <div 
+          <div
             className="message-options"
             style={{
               position: 'absolute',
@@ -56,7 +61,7 @@ const Message = ({
               right: '2px',
               cursor: 'pointer'
             }}
-            onClick={() => onMessageOptions(message._id)}
+            onClick={handleOptionsClick}
           >
             <ChevronDown size={16} color="#666" />
           </div>

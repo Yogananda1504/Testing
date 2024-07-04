@@ -6,7 +6,7 @@ import { socket } from '../../Context/SocketContext';
 
 function ActivitySection({ username, messages, setMessages, room }) {
   const [newMessage, setNewMessage] = useState('');
-  const [contextMenu, setContextMenu] = useState({ show: false, top: 0, left: 0 });
+  const [contextMenu, setContextMenu] = useState({ show: false, msgoptions: false, top: 0, left: 0, messageId: null, isOwnMessage: false });
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -18,14 +18,11 @@ function ActivitySection({ username, messages, setMessages, room }) {
     paddingBottom: "0.5rem",
     paddingTop: "0.5rem",
     fontSize: "2rem",
-  }
+  };
 
   const style_for_scroll_bottom = {
-
-
     padding: "1rem",
     fontSize: "2rem",
-
     zIndex: 100000,
     position: "fixed",
     bottom: "5rem",
@@ -68,9 +65,9 @@ function ActivitySection({ username, messages, setMessages, room }) {
   useEffect(() => {
     socket.on("receive_message", handleMessageReceive);
     socket.on('messages_deleted', handleMessagesDeleted);
-    socket.on('left_room',(data)=>{
+    socket.on('left_room', (data) => {
       handleMessageReceive(data);
-    })
+    });
     return () => {
       socket.off("receive_message", handleMessageReceive);
       socket.off('messages_deleted', handleMessagesDeleted);
@@ -85,7 +82,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
         username: username,
         message: newMessage,
         room: room
-      }
+      };
       socket.emit("send_message", msgdata);
       setNewMessage('');
     }
@@ -93,13 +90,13 @@ function ActivitySection({ username, messages, setMessages, room }) {
 
   const handleMessageReceive = (data) => {
     setMessages((prevMessages) => [...prevMessages, data]);
-  }
+  };
 
   const handleMessagesDeleted = ({ messageIds, username }) => {
     setMessages(prevMessages =>
       prevMessages.map(msg =>
         messageIds.includes(msg._id)
-          ? { ...msg, message: msg.username === username ? 'You Deleted the Message' : `${msg.username} deleted the  message`, deletedForEveryone: true, deletedBy: username }
+          ? { ...msg, message: msg.username === username ? 'You Deleted the Message' : `${msg.username} deleted the message`, deletedForEveryone: true, deletedBy: username }
           : msg
       )
     );
@@ -107,16 +104,14 @@ function ActivitySection({ username, messages, setMessages, room }) {
 
   const handleContextMenu = (e) => {
     e.preventDefault();
-    setContextMenu({ show: true, top: e.clientY, left: e.clientX });
+    setContextMenu({ show: true, msgoptions: false, top: e.clientY, left: e.clientX, messageId: null, isOwnMessage: false });
   };
 
   const toggleSelectionMode = () => {
     setSelectionMode(prevMode => {
       if (!prevMode) {
-        // Entering selection mode
         return true;
       } else {
-        // Exiting selection mode, clear selections
         setSelectedMessages([]);
         return false;
       }
@@ -136,7 +131,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
   const handleClearChat = () => {
     socket.emit('delete_for_me', { username, messageIds: messages.map(msg => msg._id) });
     setMessages([]);
-  }
+  };
 
   const handleSelectAll = () => {
     const allMessageIds = messages.map(msg => msg._id);
@@ -151,6 +146,10 @@ function ActivitySection({ username, messages, setMessages, room }) {
     console.log("Deselected all messages");
   };
 
+  const handleEditMessage = (messageId) => {
+    // Implement edit functionality here
+    console.log(`Editing message with ID: ${messageId}`);
+  };
 
   const handleSelectOption = (option) => {
     switch (option) {
@@ -166,17 +165,23 @@ function ActivitySection({ username, messages, setMessages, room }) {
       case 'clearChat':
         handleClearChat();
         break;
+      case 'edit':
+        handleEditMessage(contextMenu.messageId);
+        break;
+      case 'delete':
+        handleDeleteMessages([contextMenu.messageId]);
+        break;
       default:
         break;
     }
-    setContextMenu({ show: false, top: 0, left: 0 });
+    setContextMenu({ show: false, msgoptions: false, top: 0, left: 0, messageId: null, isOwnMessage: false });
   };
 
-  const handleDeleteMessages = () => {
+  const handleDeleteMessages = (messagesToDelete = selectedMessages) => {
     console.log("Delete button clicked");
-    console.log("Selected messages:", selectedMessages);
+    console.log("Selected messages:", messagesToDelete);
 
-    if (selectedMessages.length === 0) {
+    if (messagesToDelete.length === 0) {
       console.log("No messages selected");
       return;
     }
@@ -184,8 +189,8 @@ function ActivitySection({ username, messages, setMessages, room }) {
     let hasSentByMe = false;
     let hasNotSentByMe = false;
 
-    selectedMessages.forEach(id => {
-      const message = messages.find((msg, _) => msg._id === id);
+    messagesToDelete.forEach(id => {
+      const message = messages.find(msg => msg._id === id);
       if (message.username === username) {
         hasSentByMe = true;
       } else {
@@ -200,8 +205,8 @@ function ActivitySection({ username, messages, setMessages, room }) {
     } else {
       setDeleteType('notSentByMe');
     }
-    console.log("Delete type:", deleteType);
-    console.log("Setting showDeleteModal to true");
+
+    setSelectedMessages(messagesToDelete);
     setShowDeleteModal(true);
   };
 
@@ -209,7 +214,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
     try {
       if (selectedMessages.length === 0) return;
 
-      const messagesToDelete = selectedMessages; // No need to map, as we're already storing _id
+      const messagesToDelete = selectedMessages;
 
       if (deleteFor === 'me') {
         socket.emit('delete_for_me', { username, messageIds: messagesToDelete });
@@ -230,9 +235,34 @@ function ActivitySection({ username, messages, setMessages, room }) {
     }
   };
 
-  const handleMessageOptions = (messageId) => {
-    // Implement your logic here, e.g., show a dropdown menu with edit/delete options
-    console.log(`Show options for message ${messageId}`);
+  const handleMessageOptions = (e, messageId, isOwnMessage) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const containerRect = messageDisplayRef.current.getBoundingClientRect();
+    
+    let left = e.clientX;
+    let top = e.clientY;
+
+    // Adjust left position for right-aligned messages
+    if (isOwnMessage) {
+      left = rect.left - 150; // Adjust this value based on your context menu width
+    }
+
+    // Ensure the menu doesn't go off the left edge of the container
+    left = Math.max(left, containerRect.left);
+
+    // Ensure the menu doesn't go off the right edge of the container
+    const maxLeft = containerRect.right - 150; // Adjust based on menu width
+    left = Math.min(left, maxLeft);
+
+    setContextMenu({
+      show: true,
+      msgoptions: true,
+      top,
+      left,
+      messageId,
+      isOwnMessage
+    });
   };
 
   return (
@@ -240,7 +270,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
       fluid
       className="activity-section"
       onContextMenu={handleContextMenu}
-      onClick={() => setContextMenu({ show: false, top: 0, left: 0 })}
+      onClick={() => setContextMenu({ show: false, msgoptions: false, top: 0, left: 0, messageId: null, isOwnMessage: false })}
     >
       <Row className="message-display-section position-relative" ref={messageDisplayRef}>
         <Col>
@@ -255,11 +285,9 @@ function ActivitySection({ username, messages, setMessages, room }) {
               onMessageOptions={handleMessageOptions}
             />
           ))}
-
         </Col>
       </Row>
       {hasScrolledUp && (
-
         <span
           className="scroll-to-bottom material-symbols-outlined"
           onClick={() => {
@@ -268,11 +296,8 @@ function ActivitySection({ username, messages, setMessages, room }) {
           }}
           style={style_for_scroll_bottom}
         >
-
           expand_circle_down
-
         </span>
-
       )}
       {selectionMode ? (
         <Row className="option-container" style={style_for_option_container}>
@@ -285,14 +310,14 @@ function ActivitySection({ username, messages, setMessages, room }) {
           </Col>
           <Col xs="auto">
             <Button variant="link" onClick={handleSelectAll} title='SelectAll'>
-              <span class="material-symbols-outlined">
+              <span className="material-symbols-outlined">
                 select_all
               </span>
             </Button>
           </Col>
           <Col xs="auto">
             <Button variant="link" onClick={handleDeselectAll} title='DeSelectAll'>
-              <span class="material-symbols-outlined">
+              <span className="material-symbols-outlined">
                 deselect
               </span>
             </Button>
@@ -307,7 +332,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
               disabled={selectedMessages.length === 0}
               title='Delete Messages'
             >
-              <span class="material-symbols-outlined" title='delete' style={{color:"Red",}}>
+              <span className="material-symbols-outlined" title='delete' style={{ color: "Red" }}>
                 delete
               </span>
             </Button>
@@ -329,7 +354,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
                   type="submit"
                   className="d-flex justify-content-center align-items-center"
                 >
-                  <span class="material-symbols-outlined">
+                  <span className="material-symbols-outlined">
                     send
                   </span>
                 </Button>
@@ -338,12 +363,16 @@ function ActivitySection({ username, messages, setMessages, room }) {
           </Col>
         </Row>
       )}
-      <ContextMenu
+       <ContextMenu
         show={contextMenu.show}
+        msgoptions={contextMenu.msgoptions}
         top={contextMenu.top}
         left={contextMenu.left}
         onSelect={handleSelectOption}
-        onClose={() => setContextMenu({ show: false, top: 0, left: 0 })}
+        onClose={() => setContextMenu({ show: false, msgoptions: false, top: 0, left: 0, messageId: null, isOwnMessage: false })}
+        hasSentByMe={contextMenu.isOwnMessage}
+        messageId={contextMenu.messageId}
+        containerRef={messageDisplayRef}
       />
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
@@ -360,16 +389,13 @@ function ActivitySection({ username, messages, setMessages, room }) {
           <Button variant="danger" onClick={() => confirmDelete('me')}>
             Delete for Me
           </Button>
-          {(deleteType === 'sentByMe' ) && (
+          {(deleteType === 'sentByMe' || deleteType === 'both') && (
             <Button variant="danger" onClick={() => confirmDelete('everyone')}>
               Delete for Everyone
             </Button>
           )}
         </Modal.Footer>
       </Modal>
-
-
-
     </Container>
   );
 }

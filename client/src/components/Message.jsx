@@ -14,13 +14,33 @@ const Message = ({
   const isOwnMessage = message.username === username;
   const messageClass = isOwnMessage ? 'message-self' : 'message-other';
 
+  const style_for_edited = {
+    fontSize: '0.8em',
+    color:'darkolivegreen',
+  }
+
   const renderMessageContent = () => {
     if (message.deletedForEveryone) {
       return message.deletedBy === username
         ? "You deleted this message"
         : `${message.deletedBy} deleted this message for everyone`;
     }
-    return message.message;
+
+    const timestamp = message.createdAt || Date.now(); // Use message.createdAt or current time as fallback
+    return (
+      <>
+        <div>{message.message}</div>
+        <div className="message-metadata" >
+          {message?.edited && <span className="message-edited" style = {style_for_edited}>(edited)</span>}
+          <span className="message-timestamp" style={style_for_edited}>{formatTimestamp(timestamp)}</span>
+        </div>
+      </>
+    );
+  };
+
+  const formatTimestamp = (timestamp) => {
+    // Implement your timestamp formatting logic here
+    return new Date(timestamp).toLocaleString();
   };
 
   const renderUsername = () => {

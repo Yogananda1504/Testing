@@ -35,7 +35,6 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
     try {
       const response = await axios.post(
         `${apiURL}/api/chat/renew-token?room=${room}&username=${username}`,
-              {},
         {
           headers: {},
           withCredentials: true

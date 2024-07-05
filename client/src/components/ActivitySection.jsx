@@ -69,6 +69,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
   useEffect(() => {
     socket.on("receive_message", handleMessageReceive);
     socket.on('messages_deleted', handleMessagesDeleted);
+    socket.on("update_edited_message", handleEditUpdate);
     socket.on('left_room', (data) => {
       handleMessageReceive(data);
     });
@@ -134,6 +135,17 @@ function ActivitySection({ username, messages, setMessages, room }) {
       )
     );
   };
+
+  const handleEditUpdate = (data)=>{
+    console.log("Received edited message:", data);
+    setMessages(prevMessages =>
+      prevMessages.map(msg =>
+        msg._id === data.messageId
+          ? { ...msg, message: data.updatedMessage, edited: true }
+          : msg
+      )
+    );
+  }
 
   const handleContextMenu = (e) => {
     e.preventDefault();

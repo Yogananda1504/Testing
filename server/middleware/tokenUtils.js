@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
 import RefreshToken from "../models/RefreshToken.js";
+import { setPriority } from "os";
+import path from "path";
 const JWT_SECRET = "secret";
 
 export const generateToken = async (req, res, next) => {
@@ -25,15 +27,20 @@ export const generateToken = async (req, res, next) => {
 		//sameSite: "strict" means that the cookie is only sent in a first-party context
 		res.cookie("accessToken", accessToken, {
 			httpOnly: true,
-			maxAge: 14 * 60 * 1000, // 14 minutes
+			maxAge: 15 * 60 * 1000, // 15 minutes
+			secure:true,
 			path: "/", // Ensure the cookie is available for all paths
+			sameSite:"strict",
+			
 		});
 
 		// Set refresh token cookie
 		res.cookie("refreshToken", refreshToken, {
 			httpOnly: true,
 			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+			secure:true,
 			path: "/", // Ensure the cookie is available for all paths
+			sameSite:"strict"
 		});
         // Save the Refresh Token in the MongoDB database
 		
@@ -148,17 +155,20 @@ export const generateAccessteToken = async (req, res, next) => {
 	if (!username || !room) {
 		return res.status(401).json({ message: "Invalid user or room" });
 	}
+	//Remove the previous token from the cookies
+	res.clearCookie("accesstoken");
 
 	//Generate a new token with the same payload
-	const acesstoken = jwt.sign({ username, room }, JWT_SECRET, {
+	const acessToken = jwt.sign({ username, room }, JWT_SECRET, {
 		expiresIn: "14m",
 	});
 	//Set the previous cookie with the newlyGenerated cookie
-	res.cookie("accesstoken", acesstoken, {
+	res.cookie("accessToken", acessToken, {
 		httpOnly: true,
 		secure: true,
 		sameSite: "strict",
-		maxAge: 14 * 60 * 1000,
+		maxAge: 15 * 60 * 1000,
+		path: "/",
 	});
 	//You have renewed the tokens properly until now
 	next();

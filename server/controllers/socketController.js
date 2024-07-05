@@ -266,7 +266,8 @@ const  handleSocketEvents = (io) => {
 						);
 					}
 				}
-				socket.broadcast.to(room).emit("update_edited_message", {messageId,editedMessage});
+				const updatedMessage=newMessage;
+				socket.broadcast.to(room).emit("update_edited_message", {messageId,updatedMessage});
 			}catch(error)
 			{
 				console.error("Error editing message:",error);

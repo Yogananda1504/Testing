@@ -2,14 +2,20 @@ import Message from "../models/Message.js";
 import ActiveUser from "../models/ActiveUser.js";
 import Rooms from "../models/Rooms.js";
 
+
+
+
 // Socket controller for handling socket events
 const  handleSocketEvents = (io) => {
 	io.on("connection", (socket) => {
 		console.log("New client connected");
 
-		socket.on("join", async ({ room }) => {
+		socket.on("join", async ({ username,room }) => {
 			socket.join(room);
 			console.log(`Pseudo-joined room ${room}`);
+			const user = ActiveUser.findOne({username,room});
+				if(user)
+                { ActiveUser.updateOne({username,room},{lastActiveAt:Date.now()}); }
 		});
 
 		socket.on("error", (err) => {
@@ -70,6 +76,9 @@ const  handleSocketEvents = (io) => {
 			console.log(`${username} is trying to join the room ${room}`);
 			try {
 				socket.join(room);
+				const user = ActiveUser.findOne({username,room});
+				if(user)
+                { ActiveUser.updateOne({username,room},{lastActiveAt:Date.now()}); }
 
 				// Save active user to MongoDB
 				const activeUser = new ActiveUser({
@@ -100,9 +109,13 @@ const  handleSocketEvents = (io) => {
 
 		socket.on("send_message", async ({ username, message, room }, callback) => {
 			try {
+
 				console.log(`${username} is sending a message in the room ${room}`);
 				const newMessage = new Message({ username, message, room });
 				await newMessage.save();
+				const user = ActiveUser.findOne({username,room});
+				if(user)
+                { ActiveUser.updateOne({username,room},{lastActiveAt:Date.now()}); }
 
 				io.to(room).emit("receive_message", {
 					username,
@@ -118,7 +131,7 @@ const  handleSocketEvents = (io) => {
 			}
 		});
 
-		socket.on("delete_for_me", async ({ username, messageIds }) => {
+		socket.on("delete_for_me", async ({ username,room,messageIds }) => {
 			try {
 				console.log(
 					`Received request to delete messages for user: ${username}`
@@ -130,6 +143,10 @@ const  handleSocketEvents = (io) => {
 					{ $addToSet: { deletedForMe: username } }
 				);
 
+				const user = ActiveUser.findOne({username,room});
+				if(user)
+                { ActiveUser.updateOne({username,room},{lastActiveAt:Date.now()}); }
+
 				console.log(
 					`Messages marked for deletion for user ${username}. Update result:`,
 					result
@@ -137,6 +154,18 @@ const  handleSocketEvents = (io) => {
 			} catch (error) {
 				console.error("Error marking messages for deletion:", error);
 			}
+		});
+
+		socket.on("update_activity",(username,room,time)=>{
+			try{
+				const user = ActiveUser.findOne({username,room});
+				if(user)
+                { ActiveUser.updateOne({username,room},{lastActiveAt:time}); }
+				
+			}catch(error){
+				console.error("Error updating activity:",error);
+			}
+
 		});
 
 		socket.on("delete_for_everyone", async ({ username, room, messageIds }) => {
@@ -154,6 +183,10 @@ const  handleSocketEvents = (io) => {
 						deletedBy: username,
 					}
 				);
+
+				const user = ActiveUser.findOne({username,room});
+				if(user)
+                { ActiveUser.updateOne({username,room},{lastActiveAt:Date.now()}); }
 
 				console.log(
 					`Messages marked for deletion for everyone by user ${username}. Update result:`,
@@ -219,6 +252,30 @@ const  handleSocketEvents = (io) => {
 			}
 
 		});
+
+		socket.on("edit_message",async ({username,room,messageId,newMessage})=>{
+			try {
+				const message = await Message.findOne({ _id: messageId });
+				if (message) {
+					if (message.username === username && room === message.room) {
+						await Message.updateOne(
+							{
+								_id: messageId,
+							},
+							{ message: newMessage,edited:true }
+						);
+					}
+				}
+				socket.broadcast.to(room).emit("update_edited_message", {messageId,editedMessage});
+			}catch(error)
+			{
+				console.error("Error editing message:",error);
+			}
+
+
+		});
+			
+	
 	});
 };
 

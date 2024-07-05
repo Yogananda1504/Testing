@@ -8,6 +8,7 @@ import { dirname, join } from "path";
 import dotenv from "dotenv";
 import { createAdapter } from "@socket.io/redis-adapter";
 import redis from "redis";
+import {Clean_up} from "./controllers/Cleanup.js";
 
 
 // Import routers and socket controller
@@ -96,6 +97,10 @@ export default async () => {
 
 	// Initialize socket controller
 	handleSocketEvents(io);
+
+	//Cleanup of the users for inactivity management
+	setInterval(Clean_up, 15 * 60 * 1000);
+
 
 	// Start the server on a worker process
 	const port = process.env.PORT || 4000;

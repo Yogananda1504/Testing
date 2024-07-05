@@ -31,6 +31,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
   const handleDrawerToggle = () => setShowDrawer(!showDrawer);
 
   const renewToken = useCallback(async () => {
+    socket.emit("update_activity", { username, room, time: Date.now() });
     try {
       const response = await axios.post(
         `${apiURL}/api/chat/renew-token?room=${room}&username=${username}`,
@@ -246,6 +247,8 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
     socket.on('reconnect_error', (error) => {
       toast.error(`Reconnection error: ${error}`);
     });
+
+    
 
     return () => {
       socket.off('chatroom_users', handleUserslist);

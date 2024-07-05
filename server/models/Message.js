@@ -8,6 +8,7 @@ const Message = mongoose.model("Message", {
 	deletedForMe: [{ type: String, default: [] }],
 	deletedBy: { type: String, default: null },
 	createdAt: { type: Date, default: Date.now, expires: '2d' }, 
+	edited:{type:Boolean,default:false},
 });
 
 //Delete for me includes the user names for whom it is not rendered

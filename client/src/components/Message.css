@@ -8,7 +8,7 @@
   
   .message-options {
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 1s ease;
   }
   
   .message-bubble:hover .message-options {

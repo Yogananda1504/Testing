@@ -11,6 +11,10 @@ function ActivitySection({ username, messages, setMessages, room }) {
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [hasScrolledUp, setHasScrolledUp] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [to_be_edited, setTo_be_edited] = useState('');
+  const [editedMessage, setEditedMessage] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState(null);
   const [deleteType, setDeleteType] = useState(null);
   const messageDisplayRef = useRef(null);
 
@@ -68,12 +72,25 @@ function ActivitySection({ username, messages, setMessages, room }) {
     socket.on('left_room', (data) => {
       handleMessageReceive(data);
     });
+
     return () => {
       socket.off("receive_message", handleMessageReceive);
       socket.off('messages_deleted', handleMessagesDeleted);
+      socket.off('update_edited_message');
       socket.off('left_room');
     }
   }, [socket]);
+
+
+  // useEffect(() => {
+
+
+  //   socket.on("update_edited_message", handleEditedMessage);
+
+  //   return () => {
+  //     socket.off('update_edited_message', handleEditedMessage);
+  //   };
+  // }, [socket]);
 
   const handleMessageSend = (e) => {
     e.preventDefault();
@@ -84,9 +101,25 @@ function ActivitySection({ username, messages, setMessages, room }) {
         room: room
       };
       socket.emit("send_message", msgdata);
+      socket.emit("update_activity", { username, room, time: Date.now() })
       setNewMessage('');
     }
   };
+
+  // const handleEditedMessage = (data) => {
+  //   console.log("Received edited message:", data);
+  //   //data has messageId, and editedMessage object
+  //   setMessages(prevMessages =>
+  //     prevMessages.map(msg =>
+  //       msg._id === data.messageId
+  //         ? { ...msg, message: data.editedMessage }
+  //         : msg
+  //     )
+  //   );
+
+  // };
+  
+
 
   const handleMessageReceive = (data) => {
     setMessages((prevMessages) => [...prevMessages, data]);
@@ -129,7 +162,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
   };
 
   const handleClearChat = () => {
-    socket.emit('delete_for_me', { username, messageIds: messages.map(msg => msg._id) });
+    socket.emit('delete_for_me', { username, room, messageIds: messages.map(msg => msg._id) });
     setMessages([]);
   };
 
@@ -147,8 +180,30 @@ function ActivitySection({ username, messages, setMessages, room }) {
   };
 
   const handleEditMessage = (messageId) => {
-    // Implement edit functionality here
     console.log(`Editing message with ID: ${messageId}`);
+    const message = messages.find(msg => msg._id === messageId);
+    setTo_be_edited(message.message);
+    setEditedMessage(message.message);
+    setEditingMessageId(messageId);
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    if (editedMessage.trim() === '') {
+      return;
+    }
+    socket.emit('edit_message', { username, room, messageId: editingMessageId, newMessage: editedMessage });
+    setMessages(prevMessages =>
+      prevMessages.map((msg) =>
+        msg._id === editingMessageId
+          ? { ...msg, message: editedMessage }
+          : msg
+      )
+    );
+    setShowEditModal(false);
+    setEditingMessageId(null);
+    setEditedMessage('');
   };
 
   const handleSelectOption = (option) => {
@@ -218,6 +273,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
 
       if (deleteFor === 'me') {
         socket.emit('delete_for_me', { username, messageIds: messagesToDelete });
+        socket.emit("update_activity", { username, room, time: Date.now() });
         const updatedMessages = messages.filter(msg => !selectedMessages.includes(msg._id));
         setMessages(updatedMessages);
       } else if (deleteFor === 'everyone') {
@@ -225,6 +281,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
           messages.find(msg => msg._id === id).username === username
         );
         socket.emit('delete_for_everyone', { username, room, messageIds: messagesToDeleteForEveryone });
+        socket.emit("update_activity", { username, room, time: Date.now() });
       }
 
       setSelectedMessages([]);
@@ -239,20 +296,17 @@ function ActivitySection({ username, messages, setMessages, room }) {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const containerRect = messageDisplayRef.current.getBoundingClientRect();
-    
+
     let left = e.clientX;
     let top = e.clientY;
 
-    // Adjust left position for right-aligned messages
     if (isOwnMessage) {
-      left = rect.left - 150; // Adjust this value based on your context menu width
+      left = rect.left - 150;
     }
 
-    // Ensure the menu doesn't go off the left edge of the container
     left = Math.max(left, containerRect.left);
 
-    // Ensure the menu doesn't go off the right edge of the container
-    const maxLeft = containerRect.right - 150; // Adjust based on menu width
+    const maxLeft = containerRect.right - 150;
     left = Math.min(left, maxLeft);
 
     setContextMenu({
@@ -363,7 +417,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
           </Col>
         </Row>
       )}
-       <ContextMenu
+      <ContextMenu
         show={contextMenu.show}
         msgoptions={contextMenu.msgoptions}
         top={contextMenu.top}
@@ -374,6 +428,43 @@ function ActivitySection({ username, messages, setMessages, room }) {
         messageId={contextMenu.messageId}
         containerRef={messageDisplayRef}
       />
+      <Modal show={showEditModal} onHide={() => {
+        setShowEditModal(false);
+        setEditingMessageId(null);
+        setEditedMessage('');
+      }}>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Message</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleEditSubmit}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Previous Message:</Form.Label>
+              <Form.Text className="d-block mb-2">{to_be_edited}</Form.Text>
+              <Form.Label>Enter New Message:</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Type your new message..."
+                value={editedMessage}
+                onChange={(e) => setEditedMessage(e.target.value)}
+                autoFocus
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => {
+              setShowEditModal(false);
+              setEditingMessageId(null);
+              setEditedMessage('');
+            }}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              Save Changes
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton>

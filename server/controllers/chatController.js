@@ -16,7 +16,7 @@ const getRoomdata = async (req, res) => {
     const messages = await Message.find({
       room,
       deletedForMe: { $nin: [username] },
-    }).sort({ createdAt: 1 }).exec();
+    }).sort({ createdAt: 1 }).limit(100).exec();
 
     const activeUsersInRoom = await ActiveUser.find({ room }).exec();
 

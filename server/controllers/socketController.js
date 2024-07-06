@@ -57,15 +57,8 @@ const handleSocketEvents = (io) => {
             try {
                 socket.join(room);
                 const now = new Date();
-                await ActiveUser.findOneAndUpdate(
-                    { username, room },
-                    { 
-                        lastActiveAt: now,
-                        sentimentScore: 0 // Reset sentiment score on join
-                    },
-                    { upsert: true, new: true, setDefaultsOnInsert: true }
-                );
-
+                const newUser = await ActiveUser.create({ username, room, lastActiveAt: now, createdAt: now });
+                await newUser.save();
                 socket.emit("welcome_message", {
                     username: "Admin",
                     message: `Welcome ${username} to the room ${room}`,

@@ -1,3 +1,5 @@
+// eslint-disable-next-line no-unused-vars
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Container } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -16,6 +18,7 @@ const apiURL = 'http://localhost:4000';
 const INACTIVITY_TIME_LIMIT = 15 * 60 * 1000; // 15 m 
 const TOKEN_RENEWAL_INTERVAL = 14 * 60 * 1000; //  14 m 
 const INACTIVITY_WARNING_TIME = 1 * 60 * 1000; // 1 m 
+// eslint-disable-next-line react/prop-types
 function Chatpage({ username, setActivitystatus, setLeftstatus }) {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
@@ -33,6 +36,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
   const renewToken = useCallback(async () => {
     socket.emit("update_activity", { username, room, time: Date.now() });
     try {
+      // eslint-disable-next-line no-unused-vars
       const response = await axios.post(
         `${apiURL}/api/chat/renew-token?room=${room}&username=${username}`,
         {

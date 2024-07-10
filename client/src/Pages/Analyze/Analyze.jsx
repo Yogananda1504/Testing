@@ -42,15 +42,14 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
     const [suggestions, setSuggestions] = useState([]);
     const [displayedSuggestions, setDisplayedSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [showMenu, setShowMenu] = useState(false);
+    const [notfound,setNotfoun] = useState(false);
 
     
     const [error, setError] = useState(null);
     const navigate = useNavigate();
     const suggestionsRef = useRef(null);
 
-    const handleCloseMenu = () => setShowMenu(false);
-    const handleShowMenu = () => setShowMenu(true);
+    
 
     const handleFetchError = useCallback((error) => {
         if (!error.response) {
@@ -69,7 +68,7 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                 navigate('/Forbidden');
                 break;
             case 404:
-                navigate('/Not-found');
+                setNotfound(true);
                 break;
             case 500:
                 navigate('/Internal-error', { state: { errorMsg: message } });
@@ -228,17 +227,17 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                 </Container>
             </Navbar>
 
-
             <Container fluid className="flex-grow-1 d-flex flex-column py-4">
+                {notfound && <p className="text-danger text-center">User not found</p>}
                 {error && <p className="text-danger text-center">{error}</p>}
 
-                {userData && (
+                {!notfound && userData && (
                     <Row className="flex-grow-1">
                         <Col md={6} className="d-flex flex-column mb-4">
                             <Card className="mood-card shadow">
                                 <Card.Body className="d-flex flex-column justify-content-center align-items-center">
                                     <Card.Title className="mb-4">Overall Mood</Card.Title>
-                                    <Card.Title className="mb-4">Username:{userData.username}</Card.Title>
+                                    <Card.Title className="mb-4">Username: {userData.username}</Card.Title>
                                     <div className="mood-emoji mb-3">{getEmojiForMood(userData.overallMood)}</div>
                                     <h2 className="mood-text mb-3">{userData.overallMood}</h2>
                                     <p className="sentiment-score">Sentiment Score: {userData.sentimentScore.toFixed(2)}</p>

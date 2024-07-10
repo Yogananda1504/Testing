@@ -2,6 +2,7 @@ import Message from "../models/Message.js";
 import ActiveUser from "../models/ActiveUser.js";
 import Rooms from "../models/Rooms.js";
 import { analyzeMoodForUser } from "../Functions/Analyze_User.mjs";
+import MoodData from "../models/Mood.js";
 
 const handleSocketEvents = (io) => {
 	io.on("connection", (socket) => {
@@ -254,6 +255,7 @@ const handleSocketEvents = (io) => {
 		socket.on("leave_room", async ({ username, room }) => {
 			try {
 				await ActiveUser.deleteOne({ username, room });
+				await MoodData.deleteOne({ username, room });
 				//Decrement the active user count by  1
 				await Rooms.updateOne({ room: room }, { $inc: { activeusers: -1 } });
 				io.to(room).emit("left_room", {

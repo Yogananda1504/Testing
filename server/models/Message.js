@@ -9,7 +9,10 @@ const Message = mongoose.model("Message", {
 	deletedBy: { type: String, default: null },
 	createdAt: { type: Date, default: Date.now, expires: "2d" },
 	edited: { type: Boolean, default: false },
-	sentimentScore: { type: Number, default: 0 },
+	sentimentScore: {
+		type: Number,
+		default: 0,
+	},
 });
 
 //Delete for me includes the user names for whom it is not rendered

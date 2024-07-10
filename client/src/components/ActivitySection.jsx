@@ -4,6 +4,46 @@ import Message from './Message';
 import ContextMenu from './ContextMenu';
 import { socket } from '../../Context/SocketContext';
 
+// New component for date separator
+const DateSeparator = ({ date }) => {
+  const separatorStyle = {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: '20px 0',
+    position: 'relative',
+  };
+
+  const lineStyle = {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '50%',
+    height: '1px',
+    backgroundColor: '#e0e0e0',
+    zIndex: 1,
+  };
+
+  const spanStyle = {
+    backgroundColor: '#f8f9fa',
+    color: '#7a7a7a',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+    padding: '6px 16px',
+    borderRadius: '20px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    position: 'relative',
+    zIndex: 2,
+  };
+
+  return (
+    <div style={separatorStyle}>
+      <div style={lineStyle}></div>
+      <span style={spanStyle}>{date}</span>
+    </div>
+  );
+};
+
 function ActivitySection({ username, messages, setMessages, room }) {
   const [newMessage, setNewMessage] = useState('');
   const [contextMenu, setContextMenu] = useState({ show: false, msgoptions: false, top: 0, left: 0, messageId: null, isOwnMessage: false });
@@ -19,10 +59,24 @@ function ActivitySection({ username, messages, setMessages, room }) {
   const messageDisplayRef = useRef(null);
 
   const style_for_option_container = {
-    paddingBottom: "0.5rem",
-    paddingTop: "0.5rem",
+    paddingBottom: "0.1rem",
+    paddingTop: "0.1rem",
     fontSize: "2rem",
   };
+
+  const style_for_msg_display = {
+    flexGrow: "1",
+    overflowY: "auto",
+    marginBottom: "0"
+  }
+
+  const style_for_input_container = {
+    marginTop: "0",
+    padding: "10px",
+    backgroundColor: "#f8f9fa",
+    borderTop: "1px solid #dee2e6",
+    marginBottom: "0"
+  }
 
   const style_for_scroll_bottom = {
     padding: "1rem",
@@ -82,45 +136,20 @@ function ActivitySection({ username, messages, setMessages, room }) {
     }
   }, [socket]);
 
-
-  // useEffect(() => {
-
-
-  //   socket.on("update_edited_message", handleEditedMessage);
-
-  //   return () => {
-  //     socket.off('update_edited_message', handleEditedMessage);
-  //   };
-  // }, [socket]);
-
   const handleMessageSend = (e) => {
     e.preventDefault();
     if (newMessage.trim() !== '') {
       const msgdata = {
         username: username,
         message: newMessage,
-        room: room
+        room: room,
+        timestamp: new Date().toISOString()
       };
       socket.emit("send_message", msgdata);
       socket.emit("update_activity", { username, room, time: Date.now() })
       setNewMessage('');
     }
   };
-
-  // const handleEditedMessage = (data) => {
-  //   console.log("Received edited message:", data);
-  //   //data has messageId, and editedMessage object
-  //   setMessages(prevMessages =>
-  //     prevMessages.map(msg =>
-  //       msg._id === data.messageId
-  //         ? { ...msg, message: data.editedMessage }
-  //         : msg
-  //     )
-  //   );
-
-  // };
-  
-
 
   const handleMessageReceive = (data) => {
     setMessages((prevMessages) => [...prevMessages, data]);
@@ -136,7 +165,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
     );
   };
 
-  const handleEditUpdate = (data)=>{
+  const handleEditUpdate = (data) => {
     console.log("Received edited message:", data);
     setMessages(prevMessages =>
       prevMessages.map(msg =>
@@ -238,6 +267,9 @@ function ActivitySection({ username, messages, setMessages, room }) {
       case 'delete':
         handleDeleteMessages([contextMenu.messageId]);
         break;
+      case 'Analyze':
+        window.open('/Analyze', '_blank');
+        break;
       default:
         break;
     }
@@ -331,6 +363,33 @@ function ActivitySection({ username, messages, setMessages, room }) {
     });
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) {
+      return "Today"; // Default to "Today" if no date is provided
+    }
+  
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Today"; // Return "Today" instead of "Invalid Date"
+    }
+  
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    }
+  
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString(undefined, options);
+  };
+  // Function to check if date has changed
+  const hasDateChanged = (prevMsg, currMsg) => {
+    if (!prevMsg) return true;
+    const prevDate = new Date(prevMsg.createdAt);
+    const currDate = new Date(currMsg.createdAt);
+    return !isNaN(prevDate.getTime()) && !isNaN(currDate.getTime()) &&
+      prevDate.toDateString() !== currDate.toDateString();
+  };
+
   return (
     <Container
       fluid
@@ -338,18 +397,22 @@ function ActivitySection({ username, messages, setMessages, room }) {
       onContextMenu={handleContextMenu}
       onClick={() => setContextMenu({ show: false, msgoptions: false, top: 0, left: 0, messageId: null, isOwnMessage: false })}
     >
-      <Row className="message-display-section position-relative" ref={messageDisplayRef}>
+      <Row className="message-display-section position-relative" ref={messageDisplayRef} style={style_for_msg_display}>
         <Col>
-          {messages.map((message) => (
-            <Message
-              key={message._id}
-              username={username}
-              message={message}
-              isSelectable={selectionMode}
-              isSelected={selectedMessages.includes(message._id)}
-              onSelect={() => handleSelectMessage(message._id)}
-              onMessageOptions={handleMessageOptions}
-            />
+          {messages.map((message, index) => (
+            <React.Fragment key={message._id}>
+              {(index === 0 || hasDateChanged(messages[index - 1], message)) && (
+                <DateSeparator date={formatDate(message.createdAt)} />
+              )}
+              <Message
+                username={username}
+                message={message}
+                isSelectable={selectionMode}
+                isSelected={selectedMessages.includes(message._id)}
+                onSelect={() => handleSelectMessage(message._id)}
+                onMessageOptions={handleMessageOptions}
+              />
+            </React.Fragment>
           ))}
         </Col>
       </Row>
@@ -405,26 +468,25 @@ function ActivitySection({ username, messages, setMessages, room }) {
           </Col>
         </Row>
       ) : (
-        <Row className="input-container">
-          <Col>
-            <Form onSubmit={handleMessageSend}>
-              <Form.Group className="d-flex">
-                <Form.Control
-                  type="text"
-                  placeholder="Type your message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                />
-                <Button
-                  variant="success"
-                  type="submit"
-                  className="d-flex justify-content-center align-items-center"
-                >
-                  <span className="material-symbols-outlined">
-                    send
-                  </span>
-                </Button>
-              </Form.Group>
+        <Row className="input-container mt-auto" style={style_for_input_container}>
+          <Col className="p-0">
+            <Form onSubmit={handleMessageSend} className="d-flex">
+              <Form.Control
+                type="text"
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                className="flex-grow-1 rounded-0 border-0"
+              />
+              <Button
+                variant="success"
+                type="submit"
+                className="d-flex justify-content-center align-items-center rounded-0"
+              >
+                <span className="material-symbols-outlined">
+                  send
+                </span>
+              </Button>
             </Form>
           </Col>
         </Row>

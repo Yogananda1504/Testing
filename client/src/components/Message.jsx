@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Form } from 'react-bootstrap';
 import { ChevronDown } from 'lucide-react';
 
@@ -16,8 +16,27 @@ const Message = ({
 
   const style_for_edited = {
     fontSize: '0.8em',
-    color:'darkolivegreen',
-  }
+    color: 'darkolivegreen',
+  };
+
+  const messageStyle = {
+    backgroundColor: "#d9fdd3",
+    color: "black",
+    position: 'relative',
+    wordWrap: 'break-word',
+    overflowWrap: 'break-word',
+    maxWidth: '80%', // Adjust this value as needed
+  };
+
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formattedTimestamp = useMemo(() => {
+    const timestamp = message.createdAt || Date.now();
+    return formatTimestamp(timestamp);
+  }, [message.createdAt]);
 
   const renderMessageContent = () => {
     if (message.deletedForEveryone) {
@@ -26,21 +45,15 @@ const Message = ({
         : `${message.deletedBy} deleted this message for everyone`;
     }
 
-    const timestamp = message.createdAt || Date.now(); // Use message.createdAt or current time as fallback
     return (
       <>
         <div>{message.message}</div>
-        <div className="message-metadata" >
-          {message?.edited && <span className="message-edited" style = {style_for_edited}>(edited)</span>}
-          <span className="message-timestamp" style={style_for_edited}>{formatTimestamp(timestamp)}</span>
+        <div className="message-metadata">
+          {message?.edited && <span className="message-edited" style={style_for_edited}>(edited)</span>}
+          <span className="message-timestamp" style={style_for_edited}>{formattedTimestamp}</span>
         </div>
       </>
     );
-  };
-
-  const formatTimestamp = (timestamp) => {
-    // Implement your timestamp formatting logic here
-    return new Date(timestamp).toLocaleString();
   };
 
   const renderUsername = () => {
@@ -51,7 +64,7 @@ const Message = ({
   };
 
   const handleOptionsClick = (e) => {
-    e.stopPropagation(); // Prevent event from bubbling up
+    e.stopPropagation();
     onMessageOptions(e, message._id, isOwnMessage);
   };
 
@@ -62,7 +75,7 @@ const Message = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="message-username">{renderUsername()}</div>
-      <div className="message-bubble" style={{ backgroundColor: "#d9fdd3", color: "black", position: 'relative' }}>
+      <div className="message-bubble" style={messageStyle}>
         {isSelectable && (
           <Form.Check
             type="checkbox"

@@ -43,7 +43,8 @@ function ContextMenu({ show, msgoptions, top, left, onSelect, onClose, hasSentBy
         { key: 'selectAll', label: 'Select All' },
         { key: 'deselectAll', label: 'Deselect All' },
         { key: 'clearChat', label: 'Clear Chat' },
-        { key: 'analyze', label: 'Analyze' },
+        { key: 'Analyze', label: 'MyMood' },
+        { key: 'Analyze Room',label : 'Analyze Room'}
       ];
 
   return (

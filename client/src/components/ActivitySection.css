@@ -1,31 +1,79 @@
+.activity-section {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
 
-  
-  
+.message-display-section {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 0 !important;
+}
+
+.input-container {
+  margin-top: 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+}
+
+.input-container form {
+  display: flex;
+  width: 100%;
+}
+
+.input-container .form-control {
+  flex-grow: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-container .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.option-container {
+  background-color: #f8f9fa;
+  padding: 1rem;
+}
+
+.option-container .btn-link {
+  color: #6c757d;
+}
+
+.message-checkbox {
+  margin-right: 10px;
+}
+
+.message-self .message-checkbox {
+  order: 1;
+  margin-right: 0;
+  margin-left: 10px;
+}
+
+/* Ensure full width on mobile */
+@media (max-width: 576px) {
+  .input-container .form-control,
   .input-container .btn {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+    font-size: 16px; /* Prevent zoom on input focus on iOS */
   }
-  
-  .input-container .form-control {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-  
-  .option-container {
-    background-color: #f8f9fa;
-    padding: 1rem;
-  }
-  
-  .option-container .btn-link {
-    color: #6c757d;
-  }
-  
-  .message-checkbox {
-    margin-right: 10px;
-  }
-  
-  .message-self .message-checkbox {
-    order: 1;
-    margin-right: 0;
-    margin-left: 10px;
-  }
+}
+
+.scroll-to-bottom {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  z-index: 1000;
+  background-color: #007bff;
+  color: white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+

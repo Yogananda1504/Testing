@@ -15,11 +15,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 const apiURL = 'http://localhost:4000';
-const INACTIVITY_TIME_LIMIT = 15 * 60 * 1000; // 15 m 
-const TOKEN_RENEWAL_INTERVAL = 14 * 60 * 1000; //  14 m 
-const INACTIVITY_WARNING_TIME = 1 * 60 * 1000; // 1 m 
+const INACTIVITY_TIME_LIMIT =  15 *60 * 1000; // 15 m 
+const TOKEN_RENEWAL_INTERVAL = 14 *60 * 1000; //  14 m 
+const INACTIVITY_WARNING_TIME = 60* 1000; // 1 m 
 // eslint-disable-next-line react/prop-types
-function Chatpage({ username, setActivitystatus, setLeftstatus }) {
+function Chatpage({ username, setActivitystatus, setLeftstatus, setActiveUsers }) {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [showDrawer, setShowDrawer] = useState(false);
@@ -36,21 +36,34 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
   const renewToken = useCallback(async () => {
     socket.emit("update_activity", { username, room, time: Date.now() });
     try {
-      // eslint-disable-next-line no-unused-vars
+      // Assuming token is stored in localStorage
       const response = await axios.post(
         `${apiURL}/api/chat/renew-token?room=${room}&username=${username}`,
+        {},
         {
-          headers: {},
-          withCredentials: true
+          headers: {
+
+          },
+          withCredentials: true,
         }
       );
       toast.success('Token renewed successfully');
       return true;
     } catch (error) {
-      toast.error('Failed to renew token.');
+      if (error.response && error.response.status === 401) {
+        console.log(error.response.data.message)
+        // Handle unauthorized error specifically
+        toast.error('Session expired. Please log in again.');
+        handleLogout(); // Log out the user
+      } else {
+        toast.error('Failed to renew token.');
+      }
       return false;
     }
   }, [username, room]);
+
+
+
 
   const handleLogout = useCallback(async () => {
     try {
@@ -177,6 +190,12 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
   }, [username, room, navigate]);
 
   useEffect(() => {
+    if (users.length > 0) {
+      setActiveUsers(users);
+    }
+  }, [users, setActiveUsers]);
+
+  useEffect(() => {
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
     window.addEventListener('scroll', handleActivity);
@@ -232,6 +251,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
 
     const handleUserslist = (users) => {
       setUsers(users);
+      setActiveUsers(users);
     };
 
     socket.on('chatroom_users', handleUserslist);
@@ -251,7 +271,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
       toast.error(`Reconnection error: ${error}`);
     });
 
-    
+
 
     return () => {
       socket.off('chatroom_users', handleUserslist);
@@ -264,7 +284,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus }) {
 
   return (
     <Container fluid className="app-container px-0">
-      <NavBar roomName={room} onMenuClick={handleDrawerToggle} onLeaveClick={handleLeaveRoom} />
+      <NavBar roomName={room} onMenuClick={handleDrawerToggle} onLeaveClick={handleLeaveRoom} socket={socket} />
       <SideDrawer show={showDrawer} onHide={() => setShowDrawer(false)} users={users} />
       <ActivitySection username={username} messages={messages} setMessages={setMessages} socket={socket} room={room} />
       <InactivityPopup

@@ -13,8 +13,13 @@ import {
 } from "../middleware/tokenUtils.js";
 
 let config = {
-	origin: "http://localhost:5173",
-	method: ["GET", "POST"],
+	origin: [
+		"http://localhost:5173",
+		"https://jr87x084-5173.inc1.devtunnels.ms",
+		
+	],
+	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+	allowedHeaders: ["Content-Type", "Authorization","Cookie"],
 	credentials: true,
 };
 

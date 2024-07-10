@@ -20,7 +20,7 @@ export const generateToken = async (req, res, next) => {
 		const tokens = { accessToken, refreshToken };
 
 		// Set access token cookie
-		//httpOnly: true means that the cookie cannot be accessed by JavaScript .Which will also make it secure by not allowing any modification from the frontend side 
+		//httpOnly: true means that the cookie cannot be accessed by JavaScript .Which will also make it secure by not allowing any modification from the frontend side
 		//maxAge: 14 * 60 * 1000 means that the cookie will expire after 14 minutes
 		//path: "/" means that the cookie is available for all paths
 		//secure: true means that the cookie is only sent over HTTPS
@@ -28,25 +28,23 @@ export const generateToken = async (req, res, next) => {
 		res.cookie("accessToken", accessToken, {
 			httpOnly: true,
 			maxAge: 15 * 60 * 1000, // 15 minutes
-			secure:true,
+			secure: true,
 			path: "/", // Ensure the cookie is available for all paths
-			sameSite:"strict",
-			
+			sameSite: "strict",
 		});
 
 		// Set refresh token cookie
 		res.cookie("refreshToken", refreshToken, {
 			httpOnly: true,
 			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-			secure:true,
+			secure: true,
 			path: "/", // Ensure the cookie is available for all paths
-			sameSite:"strict"
+			sameSite: "strict",
 		});
-        // Save the Refresh Token in the MongoDB database
-		
-        const refreshTokenDoc = new RefreshToken({ token: refreshToken });
-		await refreshTokenDoc.save();
+		// Save the Refresh Token in the MongoDB database
 
+		const refreshTokenDoc = new RefreshToken({ token: refreshToken });
+		await refreshTokenDoc.save();
 
 		console.log("Tokens generated:", tokens);
 		console.log("Cookies set:", res.getHeaders()["set-cookie"]);
@@ -62,7 +60,7 @@ export const generateToken = async (req, res, next) => {
 };
 
 export const verifyAccessToken = async (req, res, next) => {
-	// Getting the acess token from the request headers
+	// Getting the access token from the request cookies
 	const accessToken = req.cookies.accessToken;
 
 	if (!accessToken) {
@@ -76,22 +74,32 @@ export const verifyAccessToken = async (req, res, next) => {
 		}
 
 		const tokenRoom = decodedToken.room;
+		const flag = req.query.flag;
 		const { username, room } = req.query || req.params;
 
-		// First, check if the user is authenticated
-		if (decodedToken.username !== username) {
-			return res.status(401).json({ message: "Unauthorized: Invalid user" });
-		}
+		if (flag !== "ok" || flag === undefined) {
+			// First, check if the user is authenticated
+			if (decodedToken.username !== username) {
+				return res.status(401).json({ message: "Unauthorized: Invalid user" });
+			}
 
-		// Then, check if the user has access to the requested room
-		if (tokenRoom !== room) {
-			return res
-				.status(403)
-				.json({ message: "Forbidden: You don't have access to this room" });
-		}
+			// Then, check if the user has access to the requested room
+			if (tokenRoom !== room) {
+				return res
+					.status(403)
+					.json({ message: "Forbidden: You don't have access to this room" });
+			}
 
-		//If everything is ok then call the next function in the middleware chain or the controller
-		next();
+			// If everything is ok then call the next function in the middleware chain or the controller
+			next();
+		} else {
+			// The flag will be set to ok if the user is accessing the analyzeAPI for suggestions
+			const decodedToken = jwt.verify(accessToken, JWT_SECRET);
+			if (!decodedToken) {
+				return res.status(401).json({ message: "Invalid Token" });
+			}
+			next();
+		}
 	} catch (error) {
 		return res.status(401).json({ message: "Failed to authenticate token" });
 	}
@@ -136,11 +144,11 @@ export const verifyRefreshToken = async (req, res, next) => {
 			return res.status(401).json({ message: "Invalid Token" });
 		}
 		if (decodedToken.username !== username || decodedToken.room !== room) {
-			console.log("Invalid Username or Room while verifying refresh token")
+			console.log("Invalid Username or Room while verifying refresh token");
 			return res.status(403).json({ message: "Invalid Username or Room" });
 		}
 		if (decodedToken.room !== room) {
-			console.log("Invalid Room while verifying refresh token")
+			console.log("Invalid Room while verifying refresh token");
 			return res.status(403).json({ message: "Invalid Username or Room" });
 		}
 

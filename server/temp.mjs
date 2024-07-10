@@ -9,19 +9,16 @@ import { dirname, join } from "path";
 import dotenv from "dotenv";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
-import { Clean_up } from "./controllers/Cleanup.js";
-
-// Import routers and socket controller
+import { Clean_up } from "./Functions/Cleanup.js";
 import chatRouter from "./routes/chatRouter.js";
+import analyzeRouter from "./routes/analyzeRouter.js";
 import handleSocketEvents from "./controllers/socketController.js";
 import cookieParser from "cookie-parser";
 
-// Load environment variables from .env file
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
 const buildPath = join(__dirname, "..", "client", "dist");
 
 export default async () => {
@@ -29,37 +26,55 @@ export default async () => {
 	const server = http.createServer(app);
 
 	// Redis setup
-	const redisHost =
-		process.env.REDIS_HOST ||
-		"redis-18297.c15.us-east-1-4.ec2.redns.redis-cloud.com";
-	const redisPort = process.env.REDIS_PORT || 18297;
-	const redisPassword = process.env.REDIS_PASSWORD; // Make sure to set this in your .env file
+	const redisHost = process.env.REDIS_HOST || "redis-15484.c246.us-east-1-4.ec2.redns.redis-cloud.com";
+	const redisPort = process.env.REDIS_PORT || 15484;
+	const redisPassword = process.env.REDIS_PASSWORD||"oQUatMWyOi4yWQ0yLAzDaPnTsWLc4cv3";
 
 	const io = new Server(server, {
 		cors: {
 			origin: "*",
-			methods: ["GET", "POST"],
+			methods: ["*"],
 		},
+		pingTimeout: 60000,
+		pingInterval: 25000,
 	});
 
-	const pubClient = createClient({
-		socket: {
-			host: redisHost,
-			port: redisPort,
-		},
-		password: "XZtUcng50GxedzfS4P5ELpJm4PwJOvKG",
-	});
-	const subClient = pubClient.duplicate();
+	const createRedisClient = () => {
+		return createClient({
+			socket: {
+				host: redisHost,
+				port: redisPort,
+			},
+			password: redisPassword,
+		});
+	};
 
-	// Handle Redis client connection
+	const pubClient = createRedisClient();
+	const subClient = createRedisClient();
+
+	const handleRedisError = (client, error) => {
+		console.error(`Redis client error: ${error}`);
+		// Implement reconnection logic here
+	};
+
 	const connectRedis = async () => {
 		try {
+			pubClient.on("error", (err) => handleRedisError(pubClient, err));
+			subClient.on("error", (err) => handleRedisError(subClient, err));
+
 			await pubClient.connect();
 			await subClient.connect();
 			console.log("Successfully connected to Redis");
+
+			pubClient.on("reconnecting", () =>
+				console.log("Pub client reconnecting to Redis...")
+			);
+			subClient.on("reconnecting", () =>
+				console.log("Sub client reconnecting to Redis...")
+			);
 		} catch (error) {
 			console.error("Failed to connect to Redis:", error);
-			process.exit(1);
+			// Implement retry logic here instead of exiting
 		}
 	};
 
@@ -67,22 +82,23 @@ export default async () => {
 
 	io.adapter(createAdapter(pubClient, subClient));
 
-	// CORS configuration
-	let config = {
-		origin: "http://localhost:5173",
-		method: ["GET", "POST"],
-		credentials: true,
-	};
-	app.use(cors(config));
+	// CORS and middleware setup
+	app.use(
+		cors({
+			origin: [
+				"http://localhost:5173",
+				"https://jr87x084-5173.inc1.devtunnels.ms",
+			],
+			methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+			allowedHeaders: ["Content-Type", "Cookie"],
+			credentials: true,
+		})
+	);
 	app.use(express.json());
 	app.use(cookieParser());
 
-	// MongoDB connection setup
-	const uri =
-		process.env.MONGO_DB_URI ||
-		"mongodb+srv://vynr1504:Vynr_1504@cluster0.h75zeux.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0/chat";
-
-	// MongoClient options
+	// MongoDB setup
+	const uri = process.env.MONGO_DB_URI||"mongodb+srv://vynr1504:Vynr_1504@devrooms.gvpnzrc.mongodb.net/?retryWrites=true&w=majority&appName=DevRooms";
 	const mongoClientOptions = {
 		serverApi: {
 			version: ServerApiVersion.v1,
@@ -96,7 +112,7 @@ export default async () => {
 
 	const client = new MongoClient(uri, mongoClientOptions);
 
-	async function connectToMongo() {
+	const connectToMongo = async () => {
 		try {
 			await mongoose.connect(uri, {
 				useNewUrlParser: true,
@@ -114,42 +130,67 @@ export default async () => {
 			);
 		} catch (error) {
 			console.error("Failed to connect to MongoDB:", error);
-			process.exit(1);
+			// Implement retry logic here
+			setTimeout(connectToMongo, 5000); // Retry after 5 seconds
 		}
-	}
+	};
 
-	// Connect to MongoDB
 	await connectToMongo();
 
-	// Mount routers
+	// Routes
 	app.use("/api", chatRouter);
-
-	// Serve static files from the React app's build directory
+	app.use("/analyze-api", analyzeRouter);
 	app.use(express.static(buildPath));
-
-	// Redirect any non-API routes to the front end's index.html
 	app.get("*", (req, res) => {
 		res.sendFile(join(buildPath, "index.html"));
 	});
 
-	// Initialize socket controller
+	// Socket events
 	handleSocketEvents(io);
 
-	// Cleanup of the users for inactivity management
+	// Cleanup
 	setInterval(Clean_up, 15 * 60 * 1000);
 
-	// Start the server on a worker process
+	// Start server
 	const port = process.env.PORT || 4000;
 	server.listen(port, () => {
 		console.log(`Server running on port ${port}`);
 	});
 
-	// Ensure that the client will close when you finish/error
-	process.on("SIGINT", async () => {
-		await client.close();
-		await mongoose.connection.close();
-		await pubClient.quit();
-		await subClient.quit();
-		process.exit(0);
+	// Graceful shutdown
+	const gracefulShutdown = async (signal) => {
+		console.log(`${signal} received. Shutting down gracefully...`);
+		server.close(() => {
+			console.log("HTTP server closed.");
+		});
+
+		try {
+			await client.close();
+			console.log("MongoDB connection closed.");
+			await mongoose.connection.close();
+			console.log("Mongoose connection closed.");
+			await pubClient.quit();
+			await subClient.quit();
+			console.log("Redis connections closed.");
+			process.exit(0);
+		} catch (err) {
+			console.error("Error during graceful shutdown:", err);
+			process.exit(1);
+		}
+	};
+
+	// Handle various shutdown signals
+	["SIGINT", "SIGTERM", "SIGQUIT"].forEach((signal) => {
+		process.on(signal, () => gracefulShutdown(signal));
+	});
+
+	process.on("uncaughtException", (err) => {
+		console.error("Uncaught Exception:", err);
+		gracefulShutdown("Uncaught Exception");
+	});
+
+	process.on("unhandledRejection", (reason, promise) => {
+		console.error("Unhandled Rejection at:", promise, "reason:", reason);
+		gracefulShutdown("Unhandled Rejection");
 	});
 };

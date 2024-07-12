@@ -42,14 +42,14 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
     const [suggestions, setSuggestions] = useState([]);
     const [displayedSuggestions, setDisplayedSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [notfound,setNotfoun] = useState(false);
+    const [notfound, setNotfound] = useState(false);
 
-    
+
     const [error, setError] = useState(null);
     const navigate = useNavigate();
     const suggestionsRef = useRef(null);
 
-    
+
 
     const handleFetchError = useCallback((error) => {
         if (!error.response) {
@@ -90,6 +90,7 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                 headers: {},
                 withCredentials: true
             });
+            console.log(response.data);
             setUserData(response.data);
         } catch (err) {
             console.error('Error fetching user mood data:', err);
@@ -233,7 +234,7 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
 
                 {!notfound && userData && (
                     <Row className="flex-grow-1">
-                        <Col md={6} className="d-flex flex-column mb-4">
+                         <Col md={6} className="d-flex flex-column mb-4">
                             <Card className="mood-card shadow">
                                 <Card.Body className="d-flex flex-column justify-content-center align-items-center">
                                     <Card.Title className="mb-4">Overall Mood</Card.Title>
@@ -241,6 +242,20 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                                     <div className="mood-emoji mb-3">{getEmojiForMood(userData.overallMood)}</div>
                                     <h2 className="mood-text mb-3">{userData.overallMood}</h2>
                                     <p className="sentiment-score">Sentiment Score: {userData.sentimentScore.toFixed(2)}</p>
+                                    <div className="top-emotions mt-4">
+                                        <h3 className="text-lg font-semibold mb-2">Top Emotions:</h3>
+                                        <div className="d-flex justify-content-center flex-wrap">
+                                            {userData.topEmotions.map((emotion, index) => (
+                                                <div key={index} className="d-flex flex-column align-items-center mx-2 mb-2">
+                                                    <span className="emotion-emoji" style={{ fontSize: '2rem' }}>{getEmojiForMood(emotion.emotion)}</span>
+                                                    <span className="emotion-label" style={{ fontSize: '0.8rem' }}>{emotion.emotion}</span>
+                                                    <span className="emotion-percentage" style={{ fontSize: '0.8rem' }}>
+                                                        {(emotion.score * 100).toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </Card.Body>
                             </Card>
                         </Col>

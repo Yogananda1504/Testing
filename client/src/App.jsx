@@ -18,7 +18,7 @@ function App() {
   const [activeUsers, setActiveUsers] = useState([]);
   const [joinRoom, setJoinRoom] = useState(false);
 
-  // Wrap setActiveUsers in useCallback
+  
 
 
   // Effect to sync username with sessionStorage
@@ -43,8 +43,6 @@ function App() {
     console.log("Active users updated:", activeUsers);
     if (activeUsers.length > 0) {
       sessionStorage.setItem('activeUsers', JSON.stringify(activeUsers));
-    } else {
-      sessionStorage.removeItem('activeUsers');
     }
   }, [activeUsers]);
 

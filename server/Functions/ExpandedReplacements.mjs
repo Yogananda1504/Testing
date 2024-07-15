@@ -8,6 +8,7 @@ const Replacements = {
     "ur": "your",
     "b": "be",
     "bae" : "baby",
+    "hehe":"laughing",
     "cuz": "because",
     "c": "see",
     "n": "and",

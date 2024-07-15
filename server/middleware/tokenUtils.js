@@ -1,8 +1,6 @@
 import jwt from "jsonwebtoken";
 import RefreshToken from "../models/RefreshToken.js";
-import { setPriority } from "os";
-import path from "path";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
 
 dotenv.config();
 const JWT_SECRET=process.env.JWT_SECRET;

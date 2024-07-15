@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import axios from 'axios';
-import { Search, RefreshCw } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Navbar, Container, Nav, Form, FormControl, Button, Card, Row, Col, ListGroup } from 'react-bootstrap';
+import { Search, RefreshCw, Info } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from 'recharts';
+import { Navbar, Container, Nav, Form, FormControl, Button, Card, Row, Col, ListGroup, Overlay, Tooltip } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { ActiveUserContext } from '../../../Context/ActiveUserContext';
+import Loading from '../../components/Loading';
 import "./Analyze.css";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57', '#ffa07a', '#fa8072'];
@@ -35,21 +37,23 @@ const CustomTooltip = ({ active, payload }) => {
     return null;
 };
 
-const Analyze = ({ username, room, socket, activeUsers }) => {
+const Analyze = ({ username, room, socket }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedUser, setSelectedUser] = useState(username);
+    const [displayedUser, setDisplayedUser] = useState(username);
     const [userData, setUserData] = useState(null);
     const [suggestions, setSuggestions] = useState([]);
     const [displayedSuggestions, setDisplayedSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [notfound, setNotfound] = useState(false);
-
-
+    const { activeUsers } = useContext(ActiveUserContext);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
     const suggestionsRef = useRef(null);
+    const [showTooltip, setShowTooltip] = useState(false);
+    const targetRef = useRef(null);
 
-
+    const handleMouseEnter = () => setShowTooltip(true);
+    const handleMouseLeave = () => setShowTooltip(false);
 
     const handleFetchError = useCallback((error) => {
         if (!error.response) {
@@ -79,19 +83,26 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
         }
     }, [navigate]);
 
-    const fetchUserData = async (username, room) => {
-        if (!username) return;
+    const fetchUserData = useCallback(async (userToFetch, room) => {
+        if (!userToFetch) {
+            return;
+        }
 
         setIsLoading(true);
         setError(null);
+        setNotfound(false);
 
         try {
-            const response = await axios.get(`${apiURL}/analyze-api/mood?username=${encodeURIComponent(username)}&room=${encodeURIComponent(room)}`, {
+            const response = await axios.get(`${apiURL}/analyze-api/mood?username=${encodeURIComponent(userToFetch)}&room=${encodeURIComponent(room)}`, {
                 headers: {},
                 withCredentials: true
             });
-            console.log(response.data);
-            setUserData(response.data);
+            if (!response.data) {
+                setNotfound(true);
+            } else {
+                setUserData(response.data);
+                setDisplayedUser(userToFetch);
+            }
         } catch (err) {
             console.error('Error fetching user mood data:', err);
             handleFetchError(err);
@@ -99,20 +110,11 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    useEffect(() => {
-        if (selectedUser && selectedUser !== username) {
-            fetchUserData(selectedUser, room);
-        }
-    }, [selectedUser, room, username]);
-
+    }, [handleFetchError]);
 
     useEffect(() => {
         fetchUserData(username, room);
-        console.log(activeUsers)
-
-    }, [username, room]);
+    }, [username, room, fetchUserData]);
 
     useEffect(() => {
         const filteredUsers = activeUsers.filter(user =>
@@ -122,19 +124,21 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
         setDisplayedSuggestions(filteredUsers.slice(0, 5));
     }, [searchTerm, activeUsers]);
 
-    const handleSearch = (e) => {
+    const handleSearch = useCallback((e) => {
         e.preventDefault();
-        setSelectedUser(searchTerm);
-    };
+        if (searchTerm.trim()) {
+            fetchUserData(searchTerm, room);
+        }
+    }, [searchTerm, room, fetchUserData]);
 
-    const handleSuggestionClick = (user) => {
+    const handleSuggestionClick = useCallback((user) => {
         setSearchTerm(user);
-        setSelectedUser(user);
+        fetchUserData(user, room);
         setSuggestions([]);
         setDisplayedSuggestions([]);
-    };
+    }, [room, fetchUserData]);
 
-    const handleScroll = () => {
+    const handleScroll = useCallback(() => {
         if (suggestionsRef.current) {
             const { scrollTop, scrollHeight, clientHeight } = suggestionsRef.current;
             if (scrollTop + clientHeight === scrollHeight) {
@@ -144,7 +148,11 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                 ]);
             }
         }
-    };
+    }, [suggestions]);
+
+    const handleFetchFreshData = useCallback(() => {
+        fetchUserData(displayedUser, room);
+    }, [displayedUser, room, fetchUserData]);
 
     const renderPieChart = () => {
         if (!userData || !userData.emotionScores) return null;
@@ -167,7 +175,7 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                     </Pie>
-                    <Tooltip content={<CustomTooltip />} />
+                    <RechartsTooltip content={<CustomTooltip />} />
                     <Legend />
                 </PieChart>
             </ResponsiveContainer>
@@ -178,7 +186,23 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
         <div className="analyze-container d-flex flex-column vh-100">
             <Navbar bg="dark" variant="dark" expand="lg" className="sticky-top custom-navbar shadow-sm">
                 <Container fluid className="d-flex align-items-center justify-content-between py-2">
-                    <Navbar.Brand className="me-0 fs-4 d-none d-lg-block">Moods</Navbar.Brand>
+                    <Navbar.Brand className="me-0 fs-4 d-none d-lg-block">
+                        Moods
+                        <span
+                            ref={targetRef}
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
+                        >
+                            <Info size={20} className="ms-2" style={{ cursor: 'pointer' }} />
+                        </span>
+                        <Overlay target={targetRef.current} show={showTooltip} placement="right">
+                            {(props) => (
+                                <Tooltip id="info-tooltip" {...props}>
+                                    The mood is predicted more accurately as you send the messages
+                                </Tooltip>
+                            )}
+                        </Overlay>
+                    </Navbar.Brand>
                     <div className="d-flex flex-column flex-lg-row align-items-center justify-content-center w-100">
                         <Navbar.Brand className="me-0 fs-4 d-lg-none mb-2">Moods</Navbar.Brand>
                         <Form onSubmit={handleSearch} className="d-flex position-relative w-100 mb-2 mb-lg-0 mx-lg-auto search-form" style={{ maxWidth: '500px' }}>
@@ -217,7 +241,7 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                         </Form>
                         <Button
                             variant="outline-light"
-                            onClick={() => fetchUserData(selectedUser, room)}
+                            onClick={handleFetchFreshData}
                             disabled={isLoading}
                             className="fetch-btn ms-lg-2"
                             style={{ width: "auto", minWidth: "100px" }}
@@ -227,51 +251,54 @@ const Analyze = ({ username, room, socket, activeUsers }) => {
                     </div>
                 </Container>
             </Navbar>
+            {isLoading ? (
+                <Loading />
+            ) : (
+                <Container fluid className="flex-grow-1 d-flex flex-column py-4">
+                    {notfound && <p className="text-danger text-center">User not found</p>}
+                    {error && <p className="text-danger text-center">{error}</p>}
 
-            <Container fluid className="flex-grow-1 d-flex flex-column py-4">
-                {notfound && <p className="text-danger text-center">User not found</p>}
-                {error && <p className="text-danger text-center">{error}</p>}
-
-                {!notfound && userData && (
-                    <Row className="flex-grow-1">
-                         <Col md={6} className="d-flex flex-column mb-4">
-                            <Card className="mood-card shadow">
-                                <Card.Body className="d-flex flex-column justify-content-center align-items-center">
-                                    <Card.Title className="mb-4">Overall Mood</Card.Title>
-                                    <Card.Title className="mb-4">Username: {userData.username}</Card.Title>
-                                    <div className="mood-emoji mb-3">{getEmojiForMood(userData.overallMood)}</div>
-                                    <h2 className="mood-text mb-3">{userData.overallMood}</h2>
-                                    <p className="sentiment-score">Sentiment Score: {userData.sentimentScore.toFixed(2)}</p>
-                                    <div className="top-emotions mt-4">
-                                        <h3 className="text-lg font-semibold mb-2">Top Emotions:</h3>
-                                        <div className="d-flex justify-content-center flex-wrap">
-                                            {userData.topEmotions.map((emotion, index) => (
-                                                <div key={index} className="d-flex flex-column align-items-center mx-2 mb-2">
-                                                    <span className="emotion-emoji" style={{ fontSize: '2rem' }}>{getEmojiForMood(emotion.emotion)}</span>
-                                                    <span className="emotion-label" style={{ fontSize: '0.8rem' }}>{emotion.emotion}</span>
-                                                    <span className="emotion-percentage" style={{ fontSize: '0.8rem' }}>
-                                                        {(emotion.score * 100).toFixed(1)}%
-                                                    </span>
-                                                </div>
-                                            ))}
+                    {!notfound && userData && (
+                        <Row className="flex-grow-1">
+                            <Col md={6} className="d-flex flex-column mb-4">
+                                <Card className="mood-card shadow">
+                                    <Card.Body className="d-flex flex-column justify-content-center align-items-center">
+                                        <Card.Title className="mb-4">Overall Mood</Card.Title>
+                                        <Card.Title className="mb-4">Username: {userData.username}</Card.Title>
+                                        <div className="mood-emoji mb-3">{getEmojiForMood(userData.overallMood)}</div>
+                                        <h2 className="mood-text mb-3">{userData.overallMood}</h2>
+                                        <p className="sentiment-score">Sentiment Score: {userData.sentimentScore.toFixed(2)}</p>
+                                        <div className="top-emotions mt-4">
+                                            <h3 className="text-lg font-semibold mb-2">Top Emotions:</h3>
+                                            <div className="d-flex justify-content-center flex-wrap">
+                                                {userData.topEmotions.map((emotion, index) => (
+                                                    <div key={index} className="d-flex flex-column align-items-center mx-2 mb-2">
+                                                        <span className="emotion-emoji" style={{ fontSize: '2rem' }}>{getEmojiForMood(emotion.emotion)}</span>
+                                                        <span className="emotion-label" style={{ fontSize: '0.8rem' }}>{emotion.emotion}</span>
+                                                        <span className="emotion-percentage" style={{ fontSize: '0.8rem' }}>
+                                                            {(emotion.score * 100).toFixed(1)}%
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                        <Col md={6} className="d-flex flex-column mb-4">
-                            <Card className="emotion-card shadow">
-                                <Card.Body className="d-flex flex-column">
-                                    <Card.Title className="text-center mb-4">Emotion Distribution</Card.Title>
-                                    <div className="chart-container">
-                                        {renderPieChart()}
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                    </Row>
-                )}
-            </Container>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                            <Col md={6} className="d-flex flex-column mb-4">
+                                <Card className="emotion-card shadow">
+                                    <Card.Body className="d-flex flex-column">
+                                        <Card.Title className="text-center mb-4">Emotion Distribution</Card.Title>
+                                        <div className="chart-container">
+                                            {renderPieChart()}
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
+                    )}
+                </Container>
+            )}
         </div>
     );
 };

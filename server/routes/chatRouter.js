@@ -15,7 +15,7 @@ import {
 let config = {
 	origin: [
 		"http://localhost:5173",
-		"https://jr87x084-5173.inc1.devtunnels.ms",
+		"https://devrooms-manit.netlify.app",
 		
 	],
 	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

@@ -87,7 +87,7 @@ export default async () => {
 		cors({
 			origin: [
 				"http://localhost:5173",
-				"devrooms-manit"
+				"https://devrooms-manit.netlify.app"
 			],
 			methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 			allowedHeaders: ["Content-Type", "Cookie"],

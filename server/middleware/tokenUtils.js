@@ -2,7 +2,10 @@ import jwt from "jsonwebtoken";
 import RefreshToken from "../models/RefreshToken.js";
 import { setPriority } from "os";
 import path from "path";
-const JWT_SECRET = "secret";
+import dotenv from "dotenv"
+
+dotenv.config();
+const JWT_SECRET=process.env.JWT_SECRET;
 
 export const generateToken = async (req, res, next) => {
 	try {
@@ -27,7 +30,7 @@ export const generateToken = async (req, res, next) => {
 		//sameSite: "strict" means that the cookie is only sent in a first-party context
 		res.cookie("accessToken", accessToken, {
 			httpOnly: true,
-			maxAge: 15 * 60 * 1000, // 15 minutes
+			maxAge: 20 * 60 * 1000, // 15 minutes
 			secure: true,
 			path: "/", // Ensure the cookie is available for all paths
 			sameSite: "strict",
@@ -38,7 +41,7 @@ export const generateToken = async (req, res, next) => {
 			httpOnly: true,
 			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 			secure: true,
-			path: "/", // Ensure the cookie is available for all paths
+			path: "/", 
 			sameSite: "strict",
 		});
 		// Save the Refresh Token in the MongoDB database

@@ -1,7 +1,8 @@
 import express from "express";
 import Message from "../models/Message.js";
 import ActiveUser from "../models/ActiveUser.js";
-import jwt from "jsonwebtoken";
+
+configDotenv.config()
 
 
 ///This is a controller because it only iteracts with the HTTP requests andinteracts with the CRUD operations

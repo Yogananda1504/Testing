@@ -2,10 +2,9 @@ import express from "express";
 import Message from "../models/Message.js";
 import ActiveUser from "../models/ActiveUser.js";
 
-configDotenv.config()
 
 
-///This is a controller because it only iteracts with the HTTP requests andinteracts with the CRUD operations
+//This is a controller because it only iteracts with the HTTP requests andinteracts with the CRUD operations
 
 const JWT_SECRET = "secret";
 
@@ -17,7 +16,7 @@ const getRoomdata = async (req, res) => {
     const messages = await Message.find({
       room,
       deletedForMe: { $nin: [username] },
-    }).sort({ createdAt: 1 }).limit(100).exec();
+    }).sort({ createdAt: 1 }).limit(50).exec();
 
     const activeUsersInRoom = await ActiveUser.find({ room }).exec();
 

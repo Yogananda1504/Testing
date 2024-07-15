@@ -16,9 +16,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 const apiURL = 'http://localhost:4000';
-const INACTIVITY_TIME_LIMIT =  15 *60 * 1000; // 15 m 
-const TOKEN_RENEWAL_INTERVAL = 14 *60 * 1000; //  14 m 
-const INACTIVITY_WARNING_TIME = 60* 1000; // 1 m 
+const INACTIVITY_TIME_LIMIT =  15 *60 * 1000; 
+const TOKEN_RENEWAL_INTERVAL = 14 *60 * 1000;  
+const INACTIVITY_WARNING_TIME = 60* 1000;  
+
 // eslint-disable-next-line react/prop-types
 function Chatpage({ username, setActivitystatus, setLeftstatus,isConnected}) {
   const [messages, setMessages] = useState([]);

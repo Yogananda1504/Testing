@@ -26,9 +26,9 @@ export default async () => {
 	const server = http.createServer(app);
 
 	// Redis setup
-	const redisHost = process.env.REDIS_HOST || "redis-15484.c246.us-east-1-4.ec2.redns.redis-cloud.com";
-	const redisPort = process.env.REDIS_PORT || 15484;
-	const redisPassword = process.env.REDIS_PASSWORD||"oQUatMWyOi4yWQ0yLAzDaPnTsWLc4cv3";
+	const redisHost = process.env.REDIS_HOST ;
+	const redisPort = process.env.REDIS_PORT ;
+	const redisPassword = process.env.REDIS_PASSWORD;
 
 	const io = new Server(server, {
 		cors: {
@@ -87,7 +87,7 @@ export default async () => {
 		cors({
 			origin: [
 				"http://localhost:5173",
-				"https://jr87x084-5173.inc1.devtunnels.ms",
+				"devrooms-manit"
 			],
 			methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 			allowedHeaders: ["Content-Type", "Cookie"],
@@ -98,7 +98,7 @@ export default async () => {
 	app.use(cookieParser());
 
 	// MongoDB setup
-	const uri = process.env.MONGO_DB_URI||"mongodb+srv://vynr1504:Vynr_1504@devrooms.gvpnzrc.mongodb.net/?retryWrites=true&w=majority&appName=DevRooms";
+	const uri = process.env.MONGO_DB_URI;
 	const mongoClientOptions = {
 		serverApi: {
 			version: ServerApiVersion.v1,

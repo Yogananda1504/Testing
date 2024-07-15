@@ -9,13 +9,7 @@ const emotions = [
 	"anger",
 	"fear",
 	"surprise",
-	"disgust",
-	"trust",
-	"anticipation",
-	"love",
-	"optimism",
-	"pessimism",
-	"anxiety",
+	"disgust"
 ];
 
 let sentimentPipeline;

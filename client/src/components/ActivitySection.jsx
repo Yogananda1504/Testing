@@ -208,10 +208,14 @@ function ActivitySection({ username, messages, setMessages, room }) {
   };
 
   const handleSelectAll = () => {
-    const allMessageIds = messages.map(msg => msg._id);
+    if(messages.length !==0)
+    {
+      const allMessageIds = messages.map(msg => msg._id);
     setSelectedMessages(allMessageIds);
     setSelectionMode(true);
     console.log("Selected all messages:", allMessageIds);
+    }
+    
   };
 
   const handleDeselectAll = () => {
@@ -367,17 +371,17 @@ function ActivitySection({ username, messages, setMessages, room }) {
     if (!dateString) {
       return "Today"; // Default to "Today" if no date is provided
     }
-  
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       return "Today"; // Return "Today" instead of "Invalid Date"
     }
-  
+
     const today = new Date();
     if (date.toDateString() === today.toDateString()) {
       return "Today";
     }
-  
+
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     return date.toLocaleDateString(undefined, options);
   };
@@ -554,7 +558,7 @@ function ActivitySection({ username, messages, setMessages, room }) {
           <Button variant="danger" onClick={() => confirmDelete('me')}>
             Delete for Me
           </Button>
-          {(deleteType === 'sentByMe' || deleteType === 'both') && (
+          {(deleteType === 'sentByMe') && (
             <Button variant="danger" onClick={() => confirmDelete('everyone')}>
               Delete for Everyone
             </Button>

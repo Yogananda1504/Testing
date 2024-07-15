@@ -1,6 +1,6 @@
 // eslint-disable-next-line no-unused-vars
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useContext,useState, useRef, useCallback } from 'react';
 import { Container } from 'react-bootstrap';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
@@ -10,6 +10,7 @@ import SideDrawer from '../../components/SideDrawer';
 import ActivitySection from '../../components/ActivitySection';
 import InactivityPopup from '../../components/InactivityPopup';
 import { socket } from '../../../Context/SocketContext';
+import { ActiveUserContext } from '../../../Context/ActiveUserContext';
 import './Chatpage.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
@@ -19,7 +20,7 @@ const INACTIVITY_TIME_LIMIT =  15 *60 * 1000; // 15 m
 const TOKEN_RENEWAL_INTERVAL = 14 *60 * 1000; //  14 m 
 const INACTIVITY_WARNING_TIME = 60* 1000; // 1 m 
 // eslint-disable-next-line react/prop-types
-function Chatpage({ username, setActivitystatus, setLeftstatus, setActiveUsers }) {
+function Chatpage({ username, setActivitystatus, setLeftstatus,isConnected}) {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [showDrawer, setShowDrawer] = useState(false);
@@ -30,6 +31,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus, setActiveUsers }
   const inactivityWarningTimerRef = useRef(null);
   const tokenRenewalTimerRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
+  const { setActiveUsers } = useContext(ActiveUserContext)
 
   const handleDrawerToggle = () => setShowDrawer(!showDrawer);
 
@@ -189,11 +191,11 @@ function Chatpage({ username, setActivitystatus, setLeftstatus, setActiveUsers }
     }
   }, [username, room, navigate]);
 
-  useEffect(() => {
-    if (users.length > 0) {
-      setActiveUsers(users);
-    }
-  }, [users, setActiveUsers]);
+  // useEffect(() => {
+  //   if (users.length > 0) {
+  //     setActiveUsers(users);
+  //   }
+  // }, [users, setActiveUsers]);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleActivity);
@@ -285,7 +287,7 @@ function Chatpage({ username, setActivitystatus, setLeftstatus, setActiveUsers }
   return (
     <Container fluid className="app-container px-0">
       <NavBar roomName={room} onMenuClick={handleDrawerToggle} onLeaveClick={handleLeaveRoom} socket={socket} />
-      <SideDrawer show={showDrawer} onHide={() => setShowDrawer(false)} users={users} />
+      <SideDrawer show={showDrawer} isConnected={isConnected} onHide={() => setShowDrawer(false)} users={users} />
       <ActivitySection username={username} messages={messages} setMessages={setMessages} socket={socket} room={room} />
       <InactivityPopup
         show={showInactivityPopup}

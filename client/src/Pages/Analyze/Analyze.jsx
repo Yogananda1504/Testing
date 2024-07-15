@@ -45,6 +45,7 @@ const Analyze = ({ username, room, socket }) => {
     const [displayedSuggestions, setDisplayedSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [notfound, setNotfound] = useState(false);
+    const [showNotFoundTooltip, setShowNotFoundTooltip] = useState(false);
     const { activeUsers } = useContext(ActiveUserContext);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
@@ -52,8 +53,13 @@ const Analyze = ({ username, room, socket }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const targetRef = useRef(null);
 
+    //This is for the nav Bar to show the tooltip
     const handleMouseEnter = () => setShowTooltip(true);
     const handleMouseLeave = () => setShowTooltip(false);
+
+    //This is for the UserNot found Nav 
+    const handleNotFoundMouseEnter = () => setShowNotFoundTooltip(true);
+    const handleNotFoundMouseLeave = () => setShowNotFoundTooltip(false);
 
     const handleFetchError = useCallback((error) => {
         if (!error.response) {
@@ -255,7 +261,29 @@ const Analyze = ({ username, room, socket }) => {
                 <Loading />
             ) : (
                 <Container fluid className="flex-grow-1 d-flex flex-column py-4">
-                    {notfound && <p className="text-danger text-center">User not found</p>}
+                    {notfound && (
+                        <Container fluid className="mt-3 mb-3">
+                            <h3 className="text-danger text-center position-relative">
+                                User not found
+                                <span
+                                    ref={targetRef}
+                                    onMouseEnter={handleNotFoundMouseEnter}
+                                    onMouseLeave={handleNotFoundMouseLeave}
+                                    className="ms-2"
+                                >
+                                    <Info size={20} style={{ cursor: 'pointer' }} />
+                                </span>
+                                <Overlay target={targetRef.current} show={showNotFoundTooltip} placement="right">
+                                    {(props) => (
+                                        <Tooltip id="notfound-tooltip" {...props}>
+                                            The user may have left or might not have entered the Room yet
+                                            😭
+                                        </Tooltip>
+                                    )}
+                                </Overlay>
+                            </h3>
+                        </Container>
+                    )}
                     {error && <p className="text-danger text-center">{error}</p>}
 
                     {!notfound && userData && (

@@ -21,6 +21,8 @@ const handleSocketEvents = (io) => {
 			io.to(room).emit("chatroom_users", activeUsersInRoom);
 		};
 
+		
+
 		socket.on("check_room_exists", async (room) => {
 			try {
 				const roomExists = await Rooms.exists({ name: room });
@@ -30,6 +32,11 @@ const handleSocketEvents = (io) => {
 				socket.emit("room_exists", false);
 			}
 		});
+
+		socket.on("ping",()=>{
+			//Emit the response as pong for the ping 
+			socket.emit("pong");
+		})
 
 		socket.on("join", async ({ username, room }) => {
 			try {
@@ -273,6 +280,7 @@ const handleSocketEvents = (io) => {
 			try {
 				await ActiveUser.deleteOne({ username, room });
 				await Rooms.updateOne({ room: room }, { $inc: { activeusers: -1 } });
+				await MoodData.deleteOne({username,room});
 				io.to(room).emit("left_room", {
 					username: "Admin",
 					message: `${username} has left the room`,
